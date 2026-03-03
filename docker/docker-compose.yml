@@ -1,0 +1,30 @@
+# Version du format Docker Compose (compatible avec la plupart des installations)
+version: "3.9"
+
+services:
+  # --- SERVICE 1 : LE BACKEND (Application Node.js) ---
+  backend:
+    build:
+      # Dossier où se trouve le code source
+      context: ../backend
+      # Nom du fichier de configuration Docker pour le backend
+      dockerfile: dockerfile.backend
+    ports:
+      # Liaison des ports : [Port Windows]:[Port interne au conteneur]
+      - "3000:3000"
+    depends_on:
+      # Empêche le backend de démarrer tant que la base de données n'est pas prête
+      - db
+
+  # --- SERVICE 2 : LA BASE DE DONNÉES (MySQL) ---
+  db:
+    # Utilisation de l'image officielle MySQL version 8
+    image: mysql:8
+    environment:
+      # Mot de passe de l'administrateur (Root)
+      MYSQL_ROOT_PASSWORD: 123456
+      # Nom de la base de données créée automatiquement au lancement
+      MYSQL_DATABASE: mini_chat
+    ports:
+      # Port standard MySQL pour permettre la connexion depuis l'extérieur
+      - "3306:3306"

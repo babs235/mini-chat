@@ -1,6 +1,3 @@
-# Version du format Docker Compose (compatible avec la plupart des installations)
-version: "3.9"
-
 services:
   # --- SERVICE 1 : LE BACKEND (Application Node.js) ---
   backend:
@@ -22,9 +19,14 @@ services:
     image: mysql:8
     environment:
       # Mot de passe de l'administrateur (Root)
-      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_ROOT_PASSWORD: "123456"
       # Nom de la base de données créée automatiquement au lancement
       MYSQL_DATABASE: mini_chat
     ports:
       # Port standard MySQL pour permettre la connexion depuis l'extérieur
       - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql  # <--- CETTE LIGNE SAUVEGARDE TES TABLES
+  
+volumes:
+  mysql_data: # <--- DÉFINIT LE STOCKAGE PERSISTANT

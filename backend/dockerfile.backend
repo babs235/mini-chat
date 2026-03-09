@@ -10,6 +10,8 @@ COPY package*.json ./
 #Etape 4 : installer le dependances 
 RUN npm install
 
+RUN npm install -g nodemon 
+
 #ETAPE 5 : copier tout le code backend
 COPY . .
 
@@ -17,4 +19,4 @@ COPY . .
 EXPOSE 3000
 
 #etape 7 : commande pour lancer serveur
-CMD ["node", "server.js"]
+CMD ["nodemon", "server.js"]

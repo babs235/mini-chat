@@ -9,6 +9,8 @@ services:
     ports:
       # Liaison des ports : [Port Windows]:[Port interne au conteneur]
       - "3000:3000"
+    volumes:
+      - ../backend:/app  # <--- monte ton code local dans le conteneur
     depends_on:
       # Empêche le backend de démarrer tant que la base de données n'est pas prête
       - db

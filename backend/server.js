@@ -4,14 +4,15 @@ const app = express();
 const authRoutes = require("./src/routes/auth");
 const messagesRoutes = require("./src/routes/messages");
 
-// Middleware pour lire le JSON des requêtes
+// Middleware JSON
 app.use(express.json());
 
 // Routes d'authentification
 app.use("/auth", authRoutes);
 
 // Routes pour les messages
-app.use(messagesRoutes);
+// Toutes les routes dans messages.js seront sous "/messages"
+app.use("/messages", messagesRoutes);
 
 // Route test
 app.get("/", (req, res) => {
@@ -19,5 +20,5 @@ app.get("/", (req, res) => {
 });
 
 app.listen(3000, () => {
-  console.log("Serveur lance sur le port 3000");
+  console.log("Serveur lancé sur le port 3000");
 });

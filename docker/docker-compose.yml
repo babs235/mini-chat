@@ -26,7 +26,7 @@ services:
       # Port standard MySQL pour permettre la connexion depuis l'extérieur
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql  # <--- CETTE LIGNE SAUVEGARDE TES TABLES
-  
+    - mysql_data:/var/lib/mysql
+    - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql
 volumes:
-  mysql_data: # <--- DÉFINIT LE STOCKAGE PERSISTANT
+  mysql_data:

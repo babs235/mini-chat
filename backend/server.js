@@ -1,18 +1,24 @@
 const express = require("express");
+const cors = require("cors");
+const path = require("path");
+
 const app = express();
 
 const authRoutes = require("./src/routes/auth");
 const messagesRoutes = require("./src/routes/messages");
 
-// Middleware JSON
+// Autoriser les requêtes externes
+app.use(cors());
+
+// Lire le JSON des requêtes
 app.use(express.json());
 
-// Routes d'authentification
+// Routes API
 app.use("/auth", authRoutes);
-
-// Routes pour les messages
-// Toutes les routes dans messages.js seront sous "/messages"
 app.use("/messages", messagesRoutes);
+
+// Servir le frontend
+app.use(express.static(path.join(__dirname, "frontend")));
 
 // Route test
 app.get("/", (req, res) => {

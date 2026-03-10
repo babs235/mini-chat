@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mini Chat</title>
+</head>
+
+<body>
+
+<h1>Mini Chat</h1>
+
+<input id="userId" placeholder="User ID">
+<input id="message" placeholder="Message">
+<button onclick="sendMessage()">Envoyer</button>
+
+<h2>Messages</h2>
+
+<ul id="messages"></ul>
+
+<script>
+
+async function loadMessages() {
+
+  const res = await fetch("http://localhost:3000/messages");
+  const data = await res.json();
+
+  const list = document.getElementById("messages");
+  list.innerHTML = "";
+
+  data.forEach(msg => {
+    const li = document.createElement("li");
+    li.textContent = msg.username + " : " + msg.message;
+    list.appendChild(li);
+  });
+
+}
+
+async function sendMessage() {
+
+  const userId = document.getElementById("userId").value;
+  const message = document.getElementById("message").value;
+
+  await fetch("http://localhost:3000/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      user_id: userId,
+      message: message
+    })
+  });
+
+  loadMessages();
+
+}
+
+loadMessages();
+
+</script>
+
+</body>
+</html>

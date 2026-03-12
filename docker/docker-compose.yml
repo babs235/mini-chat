@@ -26,7 +26,7 @@ services:
       MYSQL_DATABASE: mini_chat
     ports:
       # Port standard MySQL pour permettre la connexion depuis l'extérieur
-      - "3306:3306"
+      - "3307:3306"
     volumes:
     - mysql_data:/var/lib/mysql
     - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql

@@ -1,60 +1,70 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Mini Chat</title>
+<meta charset="UTF-8">
+<title>Mini Chat - Connexion</title>
 </head>
 
 <body>
 
 <h1>Mini Chat</h1>
 
-<input id="userId" placeholder="User ID">
-<input id="message" placeholder="Message">
-<button onclick="sendMessage()">Envoyer</button>
+<!-- FORMULAIRE CONNEXION -->
+<div id="loginSection">
+<h2>Connexion</h2>
 
-<h2>Messages</h2>
+<input id="loginUsername" placeholder="Username">
+<br><br>
 
-<ul id="messages"></ul>
+<input id="loginPassword" type="password" placeholder="Password">
+<br><br>
+
+<button onclick="login()">Se connecter</button>
+
+<br><br>
+
+<button onclick="showRegister()">S'inscrire</button>
+
+</div>
+
+
+<!-- FORMULAIRE INSCRIPTION -->
+<div id="registerSection" style="display:none;">
+
+<h2>Inscription</h2>
+
+<input id="registerUsername" placeholder="Username">
+<br><br>
+
+<input id="registerPassword" type="password" placeholder="Password">
+<br><br>
+
+<button onclick="register()">Créer un compte</button>
+
+<br><br>
+
+<button onclick="showLogin()">Retour connexion</button>
+
+</div>
+
+
+<script src="js/auth.js"></script>
 
 <script>
 
-async function loadMessages() {
+function showRegister(){
 
-  const res = await fetch("http://localhost:3000/messages");
-  const data = await res.json();
-
-  const list = document.getElementById("messages");
-  list.innerHTML = "";
-
-  data.forEach(msg => {
-    const li = document.createElement("li");
-    li.textContent = msg.username + " : " + msg.message;
-    list.appendChild(li);
-  });
+document.getElementById("loginSection").style.display = "none";
+document.getElementById("registerSection").style.display = "block";
 
 }
 
-async function sendMessage() {
+function showLogin(){
 
-  const userId = document.getElementById("userId").value;
-  const message = document.getElementById("message").value;
-
-  await fetch("http://localhost:3000/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      user_id: userId,
-      message: message
-    })
-  });
-
-  loadMessages();
+document.getElementById("loginSection").style.display = "block";
+document.getElementById("registerSection").style.display = "none";
 
 }
-
-loadMessages();
 
 </script>
 

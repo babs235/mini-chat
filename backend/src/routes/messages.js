@@ -1,43 +1,44 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/database");
+const verifyToken = require("../middleware/auth");
 
+// envoyer message sécurisé
+router.post("/", verifyToken, (req, res) => {
 
-// envoyer un message
-router.post("/", (req, res) => {
+  const message = req.body.message;
 
-  const { user_id, message } = req.body;
+  //  récupéré depuis le token
+  const user_id = req.user.userId;
 
   const sql = "INSERT INTO messages (user_id, message) VALUES (?, ?)";
 
-  db.query(sql, [user_id, message], (err, result) => {
+  db.query(sql, [user_id, message], (err) => {
 
     if (err) {
-      console.error(err);
       return res.status(500).json({ error: "Erreur serveur" });
     }
 
-    res.json({ message: "Message envoyé avec succès" });
+    res.json({ message: "Message envoyé" });
 
   });
 
 });
 
 
-// récupérer tous les messages
-router.get("/", (req, res) => {
+// récupérer messages sécurisé
+router.get("/", verifyToken, (req, res) => {
 
   const sql = `
-  SELECT messages.id, users.username, messages.message, messages.created_at
-  FROM messages
-  JOIN users ON messages.user_id = users.id
-  ORDER BY messages.created_at ASC
+    SELECT messages.id, users.username, messages.message
+    FROM messages
+    JOIN users ON messages.user_id = users.id
+    ORDER BY messages.id ASC
   `;
 
   db.query(sql, (err, results) => {
 
     if (err) {
-      console.error(err);
       return res.status(500).json({ error: "Erreur serveur" });
     }
 
@@ -46,6 +47,5 @@ router.get("/", (req, res) => {
   });
 
 });
-
 
 module.exports = router;

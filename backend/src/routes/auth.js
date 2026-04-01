@@ -1,13 +1,69 @@
-const express = require("express"); // On importe le framework Express
-const router = express.Router();    // On crée un mini-système de routage spécifique à l'auth
-const authController = require("../controllers/authController"); // On importe la logique de calcul
+const express = require("express");
+const router = express.Router();
+const db = require("../config/database");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
-// Route pour l'inscription : quand on envoie des données à /auth/register
-// On utilise .post car on envoie des informations sensibles (mot de passe)
-router.post("/register", authController.register);
+const SECRET = "secretkey";
 
-// Route pour la connexion : quand on envoie des données à /auth/login
-router.post("/login", authController.login);
+// 🔥 REGISTER
+router.post("/register", async (req, res) => {
 
-// On exporte ce "pack" de routes pour que server.js puisse l'utiliser
+  const { username, password } = req.body;
+
+  // hash du mot de passe
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  const sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+
+  db.query(sql, [username, hashedPassword], (err) => {
+
+    if (err) {
+      return res.status(500).json({ error: "Erreur serveur" });
+    }
+
+    res.json({ message: "Utilisateur créé" });
+
+  });
+
+});
+
+
+// 🔥 LOGIN
+router.post("/login", (req, res) => {
+
+  const { username, password } = req.body;
+
+  const sql = "SELECT * FROM users WHERE username = ?";
+
+  db.query(sql, [username], async (err, results) => {
+
+    if (results.length === 0) {
+      return res.status(401).json({ error: "Utilisateur introuvable" });
+    }
+
+    const user = results[0];
+
+    const valid = await bcrypt.compare(password, user.password);
+
+    if (!valid) {
+      return res.status(401).json({ error: "Mot de passe incorrect" });
+    }
+
+    // 🔥 création du token
+    const token = jwt.sign(
+      { userId: user.id, username: user.username },
+      SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      token,
+      username: user.username
+    });
+
+  });
+
+});
+
 module.exports = router;

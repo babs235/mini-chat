@@ -1,74 +1,67 @@
 const API = "http://localhost:3000";
 
-const userId = localStorage.getItem("userId");
+const token = localStorage.getItem("token");
 const username = localStorage.getItem("username");
 
-if(!userId){
-window.location.href = "index.html";
+// 🔥 Vérifier connexion
+if (!token) {
+  window.location.href = "index.html";
 }
 
-document.getElementById("welcome").innerText = "Connecté en tant que : " + username;
+document.getElementById("welcome").innerText =
+  "Connecté en tant que : " + username;
 
+// 🔹 Charger messages
+async function loadMessages() {
+  try {
+    const res = await fetch(`${API}/messages`, {
+      headers: { "Authorization": token }
+    });
+    const data = await res.json();
 
-async function loadMessages(){
+    const list = document.getElementById("messages");
+    list.innerHTML = "";
 
-const res = await fetch(API + "/messages");
+    data.forEach(msg => {
+      const li = document.createElement("li");
+      li.textContent = `${msg.username} : ${msg.message}`;
+      list.appendChild(li);
+    });
 
-const data = await res.json();
-
-const list = document.getElementById("messages");
-
-list.innerHTML = "";
-
-data.forEach(msg => {
-
-const li = document.createElement("li");
-
-li.textContent = msg.username + " : " + msg.message;
-
-list.appendChild(li);
-
-});
-
+  } catch (err) {
+    console.error(err);
+  }
 }
 
+// 🔹 Envoyer message
+async function sendMessage() {
+  const message = document.getElementById("messageInput").value;
+  if (!message.trim()) return;
 
-async function sendMessage(){
+  try {
+    await fetch(`${API}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": token
+      },
+      body: JSON.stringify({ message })
+    });
+    document.getElementById("messageInput").value = "";
+    loadMessages();
 
-const message = document.getElementById("messageInput").value;
+  } catch (err) {
+    console.error(err);
+  }
+}
 
-await fetch(API + "/messages",{
+// 🔹 Déconnexion
+function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("username");
+  window.location.href = "index.html";
+}
 
-method:"POST",
-
-headers:{
-"Content-Type":"application/json"
-},
-
-body:JSON.stringify({
-user_id:userId,
-message:message
-})
-
-});
-
-document.getElementById("messageInput").value="";
-
+// 🔹 Chargement initial
 loadMessages();
-
-}
-
-
-function logout(){
-
-localStorage.removeItem("userId");
-localStorage.removeItem("username");
-
-window.location.href = "index.html";
-
-}
-
-
-loadMessages();
-
-setInterval(loadMessages,3000);
+setInterval(loadMessages, 3000);

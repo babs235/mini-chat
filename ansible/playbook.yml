@@ -1,0 +1,16 @@
+- name: Lancer mon projet chat
+  hosts: localhost
+  tasks:
+
+    - name: Vérifier Docker
+      command: docker --version
+      
+    # - name: lancer docker
+    #   service:
+    #     name: docker
+    #     state: started
+
+    - name: Lancer docker-compose
+      command: docker-compose up -d
+      args:
+        chdir: ../docker

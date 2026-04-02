@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
-// 🔥 monitoring
+//  monitoring
 const { register, metricsMiddleware } = require("./src/middleware/metrics");
 
 const app = express();
@@ -14,7 +14,7 @@ const messagesRoutes = require("./src/routes/messages");
 app.use(cors());
 app.use(express.json());
 
-// 🔥 compter les requêtes
+//  compter les requêtes
 app.use(metricsMiddleware);
 
 // routes API
@@ -29,7 +29,7 @@ app.get("/", (req, res) => {
   res.send("Backend OK");
 });
 
-// 🔥 route metrics pour Prometheus
+//  route metrics pour Prometheus
 app.get("/metrics", async (req, res) => {
   res.set("Content-Type", register.contentType);
   res.end(await register.metrics());

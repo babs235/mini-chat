@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Mini Chat - Connexion</title>
+</head>
+<body>
+<h1>Mini Chat</h1>
+
+<!-- FORMULAIRE CONNEXION -->
+<div id="loginSection">
+  <h2>Connexion</h2>
+  <input id="loginUsername" placeholder="Username"><br><br>
+  <input id="loginPassword" type="password" placeholder="Password"><br><br>
+  <button onclick="login()">Se connecter</button><br><br>
+  <button onclick="showRegister()">S'inscrire</button>
+</div>
+
+<!-- FORMULAIRE INSCRIPTION -->
+<div id="registerSection" style="display:none;">
+  <h2>Inscription</h2>
+  <input id="registerUsername" placeholder="Username"><br><br>
+  <input id="registerPassword" type="password" placeholder="Password"><br><br>
+  <button onclick="register()">Créer un compte</button><br><br>
+  <button onclick="showLogin()">Retour connexion</button>
+</div>
+
+<script src="js/auth.js"></script>
+</body>
+</html>

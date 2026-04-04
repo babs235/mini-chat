@@ -1,0 +1,45 @@
+services:
+  # --- SERVICE 1 : LE BACKEND (Application Node.js) ---
+  backend:
+    build:
+      # Dossier où se trouve le code source
+      context: ../backend
+      # Nom du fichier de configuration Docker pour le backend
+      dockerfile: dockerfile.backend
+    ports:
+      # Liaison des ports : [Port Windows]:[Port interne au conteneur]
+      - "3000:3000"
+    volumes:
+      - ../backend:/app  # <--- monte ton code local dans le conteneur
+    depends_on:
+      # Empêche le backend de démarrer tant que la base de données n'est pas prête
+      - db
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3001:3000"
+
+  # --- SERVICE 2 : LA BASE DE DONNÉES (MySQL) ---
+  db:
+    # Utilisation de l'image officielle MySQL version 8
+    image: mysql:8
+    environment:
+      # Mot de passe de l'administrateur (Root)
+      MYSQL_ROOT_PASSWORD: "123456"
+      # Nom de la base de données créée automatiquement au lancement
+      MYSQL_DATABASE: mini_chat
+    ports:
+      # Port standard MySQL pour permettre la connexion depuis l'extérieur
+      - "3307:3306"
+    volumes:
+    - mysql_data:/var/lib/mysql
+    - ../database/init.sql:/docker-entrypoint-initdb.d/init.sql
+volumes:
+  mysql_data:

@@ -81,3 +81,34 @@ jobs:
         run: |
           cd ansible
           ansible-lint playbook.yml || echo "Lint warnings"
+
+  # === JOB 4 : DÉPLOIEMENT SUR EC2 ===
+  deploy:
+    name: Déploiement EC2
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    steps:
+      - name: Configuration SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 15.188.144.169 >> ~/.ssh/known_hosts
+
+      - name: Déploiement sur le serveur
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@15.188.144.169 << 'EOF'
+            cd /home/ubuntu/mini-chat
+            git pull origin main
+            cd docker
+            docker compose stop
+            docker compose up -d --build
+            docker ps
+          EOF
+
+      - name: Vérification du déploiement
+        run: |
+          sleep 30
+          curl -f http://15.188.144.169:3000 || exit 1
+          echo "✅ Application déployée avec succès !"

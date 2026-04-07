@@ -1,0 +1,8 @@
+# Terraform - Ne pas versionner les fichiers sensibles
+terraform.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+*.tfvars.json

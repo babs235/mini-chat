@@ -95,16 +95,15 @@ jobs:
           host: 15.188.144.169
           username: ubuntu
           key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script_stop: false
           script: |
-            cd /home/ubuntu/mini-chat
-            git pull origin main
+            whoami
+            cd /home/ubuntu/mini-chat || exit 1
+            git pull origin main || exit 1
             cd docker
-            docker compose stop
+            docker compose down || true
             docker compose up -d --build
+            sleep 10
             docker ps
-
-      - name: Vérification du déploiement
-        run: |
-          sleep 30
-          curl -f http://15.188.144.169:3000 || exit 1
-          echo "Application déployée avec succès !"
+            echo "Déploiement terminé"

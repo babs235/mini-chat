@@ -89,16 +89,22 @@ jobs:
     needs: build
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
       - name: Configuration SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Ajout de l'hôte SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H 15.188.144.169 >> ~/.ssh/known_hosts
 
       - name: Déploiement sur le serveur
         run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@15.188.144.169 << 'EOF'
+          ssh ubuntu@15.188.144.169 << 'EOF'
             cd /home/ubuntu/mini-chat
             git pull origin main
             cd docker
@@ -111,4 +117,4 @@ jobs:
         run: |
           sleep 30
           curl -f http://15.188.144.169:3000 || exit 1
-          echo "✅ Application déployée avec succès !"
+          echo "Application déployée avec succès !"

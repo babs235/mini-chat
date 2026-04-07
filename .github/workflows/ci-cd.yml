@@ -89,29 +89,19 @@ jobs:
     needs: build
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
-      - name: Récupération du code
-        uses: actions/checkout@v4
-
-      - name: Configuration SSH
-        uses: webfactory/ssh-agent@v0.8.0
+      - name: Déploiement SSH sur EC2
+        uses: appleboy/ssh-action@v1.0.0
         with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
-
-      - name: Ajout de l'hôte SSH
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H 15.188.144.169 >> ~/.ssh/known_hosts
-
-      - name: Déploiement sur le serveur
-        run: |
-          ssh ubuntu@15.188.144.169 << 'EOF'
+          host: 15.188.144.169
+          username: ubuntu
+          key: ${{ secrets.SSH_KEY }}
+          script: |
             cd /home/ubuntu/mini-chat
             git pull origin main
             cd docker
             docker compose stop
             docker compose up -d --build
             docker ps
-          EOF
 
       - name: Vérification du déploiement
         run: |

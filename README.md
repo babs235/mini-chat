@@ -287,3 +287,5 @@ Période : Février - Juin 2026
 ---
 
 **⚠️ Note pour le jury :** Ce projet est en cours d'évolution. Les éléments marqués "En Cours" ou "À Venir" font l'objet de développements en parallèle pour le passage devant jury de juillet 2026.
+ 
+ 

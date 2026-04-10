@@ -1,4 +1,4 @@
-const API = "http://localhost:3000";
+const API = "http://15.237.74.49:3000";
 
 const token = localStorage.getItem("token");
 const username = localStorage.getItem("username");

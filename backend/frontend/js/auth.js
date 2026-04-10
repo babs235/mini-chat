@@ -1,4 +1,4 @@
-const API = "http://51.44.18.180:3000";
+const API = "http://15.237.74.49:3000";
 
 // 🔹 INSCRIPTION
 async function register() {

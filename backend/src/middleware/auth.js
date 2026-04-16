@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 
-const SECRET = "secretkey";
+const SECRET = process.env.JWT_SECRET || "MiniChat2024!@#$%^&*()_+SecureKey" + Date.now();
 
 // 🔥 middleware qui protège les routes
 function verifyToken(req, res, next) {

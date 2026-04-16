@@ -1,30 +1,110 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Mini Chat - Connexion</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Chat - Connexion</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-<h1>Mini Chat</h1>
+  <div class="auth-container">
+    <div class="auth-card">
+      <!-- Logo -->
+      <div class="logo">
+        <div class="logo-icon">💬</div>
+        <h1>Mini Chat</h1>
+        <p>Discutez en temps réel avec vos amis</p>
+      </div>
 
-<!-- FORMULAIRE CONNEXION -->
-<div id="loginSection">
-  <h2>Connexion</h2>
-  <input id="loginUsername" placeholder="Username"><br><br>
-  <input id="loginPassword" type="password" placeholder="Password"><br><br>
-  <button onclick="login()">Se connecter</button><br><br>
-  <button onclick="showRegister()">S'inscrire</button>
-</div>
+      <!-- FORMULAIRE CONNEXION -->
+      <div id="loginSection">
+        <h2 class="auth-title">Connexion</h2>
+        
+        <div class="input-group">
+          <label for="loginUsername">
+            <i class="fas fa-user"></i> Nom d'utilisateur
+          </label>
+          <input 
+            type="text" 
+            id="loginUsername" 
+            class="input-field" 
+            placeholder="Entrez votre username"
+            autocomplete="username"
+          >
+        </div>
 
-<!-- FORMULAIRE INSCRIPTION -->
-<div id="registerSection" style="display:none;">
-  <h2>Inscription</h2>
-  <input id="registerUsername" placeholder="Username"><br><br>
-  <input id="registerPassword" type="password" placeholder="Password"><br><br>
-  <button onclick="register()">Créer un compte</button><br><br>
-  <button onclick="showLogin()">Retour connexion</button>
-</div>
+        <div class="input-group">
+          <label for="loginPassword">
+            <i class="fas fa-lock"></i> Mot de passe
+          </label>
+          <input 
+            type="password" 
+            id="loginPassword" 
+            class="input-field" 
+            placeholder="Entrez votre mot de passe"
+            autocomplete="current-password"
+          >
+        </div>
 
-<script src="js/auth.js"></script>
+        <button onclick="login()" class="btn btn-primary">
+          <i class="fas fa-sign-in-alt"></i> Se connecter
+        </button>
+
+        <div class="divider">
+          <span>ou</span>
+        </div>
+
+        <button onclick="showRegister()" class="btn btn-secondary">
+          <i class="fas fa-user-plus"></i> Créer un compte
+        </button>
+      </div>
+
+      <!-- FORMULAIRE INSCRIPTION -->
+      <div id="registerSection" style="display:none;">
+        <h2 class="auth-title">Inscription</h2>
+        
+        <div class="input-group">
+          <label for="registerUsername">
+            <i class="fas fa-user"></i> Nom d'utilisateur
+          </label>
+          <input 
+            type="text" 
+            id="registerUsername" 
+            class="input-field" 
+            placeholder="Choisissez un username (3-20 caractères)"
+            autocomplete="username"
+          >
+        </div>
+
+        <div class="input-group">
+          <label for="registerPassword">
+            <i class="fas fa-lock"></i> Mot de passe
+          </label>
+          <input 
+            type="password" 
+            id="registerPassword" 
+            class="input-field" 
+            placeholder="Min. 6 caractères"
+            autocomplete="new-password"
+          >
+        </div>
+
+        <button onclick="register()" class="btn btn-primary">
+          <i class="fas fa-user-plus"></i> Créer mon compte
+        </button>
+
+        <div class="divider">
+          <span>ou</span>
+        </div>
+
+        <button onclick="showLogin()" class="btn btn-secondary">
+          <i class="fas fa-arrow-left"></i> Déjà un compte ? Connectez-vous
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/auth.js"></script>
 </body>
 </html>

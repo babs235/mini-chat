@@ -1,23 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Mini Chat</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Chat - Discussion</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-<h1>Mini Chat</h1>
+  <div class="chat-container">
+    <!-- Header -->
+    <header class="chat-header">
+      <div class="header-left">
+        <div class="header-icon">💬</div>
+        <div class="header-info">
+          <h2>Mini Chat</h2>
+          <p>En ligne</p>
+        </div>
+      </div>
+      
+      <div class="header-right">
+        <div class="user-badge">
+          <div class="avatar" id="userAvatar"></div>
+          <span id="welcome"></span>
+        </div>
+        <button onclick="logout()" class="btn btn-danger" title="Déconnexion">
+          <i class="fas fa-sign-out-alt"></i>
+        </button>
+      </div>
+    </header>
 
-<h3 id="welcome"></h3>
-<button onclick="logout()">Se déconnecter</button>
-<hr>
+    <!-- Zone de messages -->
+    <main class="chat-messages" id="chatMessages">
+      <!-- État vide (affiché si pas de messages) -->
+      <div class="empty-state" id="emptyState">
+        <div class="empty-state-icon">💭</div>
+        <p>Aucun message pour le moment</p>
+        <p style="font-size: 13px; margin-top: 8px;">Soyez le premier à envoyer un message !</p>
+      </div>
+      
+      <!-- Liste des messages -->
+      <ul id="messages" class="message-list" style="display: none;"></ul>
+    </main>
 
-<h2>Nouveau message</h2>
-<input id="messageInput" placeholder="Message">
-<button onclick="sendMessage()">Envoyer</button>
+    <!-- Zone de saisie -->
+    <footer class="chat-input-area">
+      <div class="input-wrapper">
+        <input 
+          type="text" 
+          id="messageInput" 
+          class="message-input" 
+          placeholder="Écrivez votre message..."
+          maxlength="500"
+          onkeypress="if(event.key === 'Enter') sendMessage()"
+        >
+        <button onclick="sendMessage()" class="send-btn" title="Envoyer">
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+    </footer>
+  </div>
 
-<h2>Messages</h2>
-<ul id="messages"></ul>
-
-<script src="js/chat.js"></script>
+  <script src="js/chat.js"></script>
+  <script>
+    // Afficher l'initiale de l'utilisateur dans l'avatar
+    document.addEventListener('DOMContentLoaded', function() {
+      const username = localStorage.getItem('username');
+      if (username) {
+        document.getElementById('userAvatar').textContent = username.charAt(0).toUpperCase();
+      }
+    });
+  </script>
 </body>
 </html>

@@ -4,12 +4,33 @@ const db = require("../config/database");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
-const SECRET = "secretkey";
+const SECRET = process.env.JWT_SECRET || "MiniChat2024!@#$%^&*()_+SecureKey" + Date.now();
 
-// 🔥 REGISTER
+// REGISTER
 router.post("/register", async (req, res) => {
 
-  const { username, password } = req.body;
+  let { username, password } = req.body;
+
+  //  Validation des entrées
+  if (!username || !password) {
+    return res.status(400).json({ error: "Username et password requis" });
+  }
+
+  username = username.trim();
+
+  // Vérifier longueur
+  if (username.length < 3 || username.length > 20) {
+    return res.status(400).json({ error: "Username: 3-20 caractères" });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: "Mot de passe: min 6 caractères" });
+  }
+
+  // Vérifier caractères autorisés (alphanumérique uniquement)
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+    return res.status(400).json({ error: "Username: lettres, chiffres, _ uniquement" });
+  }
 
   // hash du mot de passe
   const hashedPassword = await bcrypt.hash(password, 10);

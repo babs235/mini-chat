@@ -1,4 +1,4 @@
-const API = "http://15.237.74.49:3000";
+const API = "http://13.38.35.35:3000";
 
 const token = localStorage.getItem("token");
 const username = localStorage.getItem("username");
@@ -11,7 +11,7 @@ if (!token) {
 document.getElementById("welcome").innerText =
   "Connecté en tant que : " + username;
 
-// 🔹 Charger messages
+//  Charger messages
 async function loadMessages() {
   try {
     const res = await fetch(`${API}/messages`, {

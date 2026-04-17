@@ -1,15 +1,16 @@
-const API = "http://13.38.35.35:3000";
+// API URL détectée dynamiquement (voir config.js)
 
-const token = localStorage.getItem("token");
-const currentUsername = localStorage.getItem("username");
+// 🔥 Fonction pour récupérer le token à chaque requête (évite les bugs)
+const getToken = () => localStorage.getItem("token");
+const getUsername = () => localStorage.getItem("username");
 
-// 🔥 Vérifier connexion
-if (!token) {
+// 🔥 Vérifier connexion au chargement
+if (!getToken()) {
   window.location.href = "index.html";
 }
 
 // Afficher le nom d'utilisateur dans le header
-document.getElementById("welcome").innerText = currentUsername;
+document.getElementById("welcome").innerText = getUsername();
 
 // 📝 Formater la date/heure
 function formatTime(dateString) {
@@ -40,6 +41,13 @@ function getAvatarColor(name) {
 
 //  Charger messages
 async function loadMessages() {
+  const token = getToken(); // Récupère token frais à chaque appel
+  
+  if (!token) {
+    window.location.href = "index.html";
+    return;
+  }
+  
   try {
     const res = await fetch(`${API}/messages`, {
       headers: { "Authorization": token }
@@ -82,7 +90,7 @@ async function loadMessages() {
     list.innerHTML = "";
 
     data.forEach(msg => {
-      const isOwn = msg.username === currentUsername;
+      const isOwn = msg.username === getUsername();
       const li = document.createElement("li");
       li.className = `message-item ${isOwn ? 'own' : ''}`;
       
@@ -117,8 +125,13 @@ async function loadMessages() {
 async function sendMessage() {
   const input = document.getElementById("messageInput");
   const message = input.value.trim();
+  const token = getToken(); // Token frais
   
   if (!message) return;
+  if (!token) {
+    window.location.href = "index.html";
+    return;
+  }
 
   // Désactiver l'input pendant l'envoi
   input.disabled = true;

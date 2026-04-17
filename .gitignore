@@ -2,6 +2,14 @@ node_modules/
 .env 
 .DS_Store 
 
+# Documentation locale - Ne pas versionner (sauf README.md et GUIDE_DEPLOIEMENT.md)
+CAHIER_DES_CHARGES*.md
+PROMPT*.md
+PROMETHEUS*.md
+RENDU*.md
+TUTO*.md
+COURS*.md
+
 # Clés SSH - Ne JAMAIS versionner
 *.pem
 *.key

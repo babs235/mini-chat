@@ -1,4 +1,4 @@
-const API = "http://13.38.35.35:3000";
+// API URL détectée dynamiquement (voir config.js)
 
 // 🔹 INSCRIPTION
 async function register() {

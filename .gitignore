@@ -9,6 +9,8 @@ PROMETHEUS*.md
 RENDU*.md
 TUTO*.md
 COURS*.md
+.windsurf/
+.windsurf/workflows/
 
 # Clés SSH - Ne JAMAIS versionner
 *.pem

@@ -243,6 +243,70 @@ mini-chat/
 
 ---
 
+## 📝 JOURNAL DES CORRECTIONS ET AMÉLIORATIONS
+
+### 17 Avril 2026 - Correction Bug Déconnexion + Design Amélioré
+
+#### 🔧 Problème identifié ce matin
+J'ai remarqué que quand je me connectais, j'étais automatiquement déconnecté après quelques instants. En regardant le code dans `chat.js`, j'ai compris que le token JWT était récupéré **une seule fois** au chargement de la page :
+
+```javascript
+// AVANT - Bug
+const token = localStorage.getItem("token");  // Lu une fois au chargement
+```
+
+Si le token changeait ou s'il y avait un problème de synchronisation, le frontend utilisait un token obsolète.
+
+#### ✅ Solution appliquée
+J'ai remplacé par des **fonctions qui récupèrent le token frais à chaque requête** :
+
+```javascript
+// APRÈS - Fix
+const getToken = () => localStorage.getItem("token");
+const getUsername = () => localStorage.getItem("username");
+
+// Utilisation dans chaque fonction
+const token = getToken();
+```
+
+J'ai aussi ajouté une vérification de sécurité au début de `loadMessages()` et `sendMessage()` :
+```javascript
+if (!token) {
+  window.location.href = "index.html";
+  return;
+}
+```
+
+**Fichiers modifiés** : `backend/frontend/js/chat.js`
+
+#### 🎨 Améliorations design ajoutées
+J'ai enrichi le CSS avec de nouvelles animations et effets :
+
+1. **Nouvelles animations** : `slideUp`, `scaleIn`, `pulse`, `shake`
+2. **Effet hover shine** sur les boutons (dégradé qui glisse)
+3. **Notifications toast** stylisées pour remplacer les alert()
+4. **Indicateur de connexion** avec point vert pulsant
+5. **Loading overlay** avec spinner
+6. **Effet glassmorphism** amélioré sur les messages
+
+**Fichier modifié** : `backend/frontend/css/styles.css`
+
+#### 🌐 IP déjà dynamique (config.js)
+J'avais déjà créé `config.js` qui détecte automatiquement l'IP du serveur. Quand je redémarre mon instance AWS et que l'IP change, l'application s'adapte sans que j'aie besoin de modifier le code.
+
+```javascript
+const getApiUrl = () => {
+  if (window.location.hostname === 'localhost') {
+    return 'http://localhost:3000';
+  }
+  return `http://${window.location.hostname}:3000`;
+};
+```
+
+**Commit** : "FIX: Token dynamique + Design amélioré + Animations"
+
+---
+
 **Date de création** : 16 avril 2026  
-**Version** : 1.0 - Processus final documenté  
+**Version** : 1.1 - Corrections bug déconnexion  
 **Auteur** : Babikir Ibrahim

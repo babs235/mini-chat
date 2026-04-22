@@ -15,7 +15,7 @@ function escapeHtml(text) {
 }
 
 // envoyer message sécurisé
-router.post("/", verifyToken, (req, res) => {
+router.post("/", verifyToken, async (req, res) => {
 
   const message = req.body.message;
 
@@ -34,40 +34,41 @@ router.post("/", verifyToken, (req, res) => {
   //  récupéré depuis le token
   const user_id = req.user.userId;
 
-  const sql = "INSERT INTO messages (user_id, message) VALUES (?, ?)";
-
-  db.query(sql, [user_id, safeMessage], (err) => {
-
-    if (err) {
-      return res.status(500).json({ error: "Erreur serveur" });
-    }
+  try {
+    const sql = "INSERT INTO messages (user_id, message) VALUES (?, ?)";
+    
+    // FIX P0: Pool promise - async/await
+    await db.query(sql, [user_id, safeMessage]);
 
     res.json({ message: "Message envoyé" });
 
-  });
+  } catch (err) {
+    console.error("Erreur envoi message:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 
 });
 
-
 // récupérer messages sécurisé
-router.get("/", verifyToken, (req, res) => {
+router.get("/", verifyToken, async (req, res) => {
 
-  const sql = `
-    SELECT messages.id, users.username, messages.message
-    FROM messages
-    JOIN users ON messages.user_id = users.id
-    ORDER BY messages.id ASC
-  `;
+  try {
+    const sql = `
+      SELECT messages.id, users.username, messages.message
+      FROM messages
+      JOIN users ON messages.user_id = users.id
+      ORDER BY messages.id ASC
+    `;
 
-  db.query(sql, (err, results) => {
-
-    if (err) {
-      return res.status(500).json({ error: "Erreur serveur" });
-    }
+    // FIX P0: Pool promise - async/await
+    const [results] = await db.query(sql);
 
     res.json(results);
 
-  });
+  } catch (err) {
+    console.error("Erreur récupération messages:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 
 });
 

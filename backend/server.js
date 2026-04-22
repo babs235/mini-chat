@@ -3,7 +3,7 @@ const cors = require("cors");
 const path = require("path");
 
 //  monitoring
-const { register, metricsMiddleware } = require("./src/middleware/metrics");
+const { register, metricsMiddleware, trackActiveUsers } = require("./src/middleware/metrics");
 
 const app = express();
 
@@ -16,6 +16,9 @@ app.use(express.json());
 
 //  compter les requêtes
 app.use(metricsMiddleware);
+
+// 🔥 Tracker les users actifs sur les routes protégées (avant auth)
+app.use(trackActiveUsers);
 
 // routes API
 app.use("/auth", authRoutes);

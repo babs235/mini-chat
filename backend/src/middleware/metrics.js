@@ -13,8 +13,37 @@ const httpRequests = new client.Counter({
   help: "Nombre total de requêtes HTTP"
 });
 
-// Enregistrer le compteur
+// 🔥 NOUVEAU : Gauge pour utilisateurs actifs
+const activeUsersGauge = new client.Gauge({
+  name: "active_users",
+  help: "Nombre d'utilisateurs actuellement connectés (avec token valide)"
+});
+
+// Enregistrer les métriques
 register.registerMetric(httpRequests);
+register.registerMetric(activeUsersGauge);
+
+// 🔥 FIX P0: Map avec timestamp pour éviter fuites mémoire
+const activeUsersMap = new Map();
+
+// Nettoyage périodique des users inactifs (toutes les 30 sec)
+setInterval(() => {
+  const now = Date.now();
+  const TIMEOUT = 5 * 60 * 1000; // 5 minutes
+  let changed = false;
+  
+  for (const [token, timestamp] of activeUsersMap.entries()) {
+    if (now - timestamp > TIMEOUT) {
+      activeUsersMap.delete(token);
+      changed = true;
+    }
+  }
+  
+  if (changed) {
+    activeUsersGauge.set(activeUsersMap.size);
+    console.log(`🧹 Nettoyage users: ${activeUsersMap.size} actifs`);
+  }
+}, 30000); // 30 secondes
 
 // Middleware qui s'exécute à chaque requête
 const metricsMiddleware = (req, res, next) => {
@@ -22,8 +51,24 @@ const metricsMiddleware = (req, res, next) => {
   next();
 };
 
+// 🔥 FIX P0 : Middleware pour tracker les users actifs (sans fuite mémoire)
+const trackActiveUsers = (req, res, next) => {
+  const token = req.headers["authorization"];
+  
+  if (token) {
+    // Mettre à jour le timestamp (refresh l'activité)
+    activeUsersMap.set(token, Date.now());
+    
+    // Mettre à jour la métrique Prometheus
+    activeUsersGauge.set(activeUsersMap.size);
+  }
+  
+  next();
+};
+
 // Export
 module.exports = {
   register,
-  metricsMiddleware
+  metricsMiddleware,
+  trackActiveUsers  // 🔥 Exporté pour l'utiliser dans auth.js
 };

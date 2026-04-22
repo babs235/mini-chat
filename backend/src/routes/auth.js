@@ -32,32 +32,34 @@ router.post("/register", async (req, res) => {
     return res.status(400).json({ error: "Username: lettres, chiffres, _ uniquement" });
   }
 
-  // hash du mot de passe
-  const hashedPassword = await bcrypt.hash(password, 10);
+  try {
+    // hash du mot de passe
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-  const sql = "INSERT INTO users (username, password) VALUES (?, ?)";
-
-  db.query(sql, [username, hashedPassword], (err) => {
-
-    if (err) {
-      return res.status(500).json({ error: "Erreur serveur" });
-    }
+    const sql = "INSERT INTO users (username, password) VALUES (?, ?)";
+    
+    // 🔥 Pool promise - async/await
+    await db.query(sql, [username, hashedPassword]);
 
     res.json({ message: "Utilisateur créé" });
 
-  });
+  } catch (err) {
+    console.error("❌ Erreur register:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 
 });
 
-
 // 🔥 LOGIN
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
 
   const { username, password } = req.body;
 
-  const sql = "SELECT * FROM users WHERE username = ?";
-
-  db.query(sql, [username], async (err, results) => {
+  try {
+    const sql = "SELECT * FROM users WHERE username = ?";
+    
+    // 🔥 Pool promise - async/await
+    const [results] = await db.query(sql, [username]);
 
     if (results.length === 0) {
       return res.status(401).json({ error: "Utilisateur introuvable" });
@@ -83,7 +85,10 @@ router.post("/login", (req, res) => {
       username: user.username
     });
 
-  });
+  } catch (err) {
+    console.error("❌ Erreur login:", err);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
 
 });
 

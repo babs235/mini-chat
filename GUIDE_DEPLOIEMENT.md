@@ -307,6 +307,62 @@ const getApiUrl = () => {
 
 ---
 
+### 17 Avril 2026 (après-midi) - Métrique : Utilisateurs Actifs
+
+#### 🎯 Objectif
+Ajouter une métrique Prometheus pour suivre le nombre d'utilisateurs connectés en temps réel.
+
+#### 🔧 Implémentation
+J'ai modifié `backend/src/middleware/metrics.js` pour ajouter :
+
+```javascript
+// Gauge pour utilisateurs actifs
+const activeUsersGauge = new client.Gauge({
+  name: "active_users",
+  help: "Nombre d'utilisateurs actuellement connectés"
+});
+
+// Middleware qui track les users par token
+const trackActiveUsers = (req, res, next) => {
+  const token = req.headers["authorization"];
+  if (token) {
+    activeUsersSet.add(token);
+    activeUsersGauge.set(activeUsersSet.size);
+    // Auto-expire après 5 minutes
+    setTimeout(() => {
+      activeUsersSet.delete(token);
+      activeUsersGauge.set(activeUsersSet.size);
+    }, 5 * 60 * 1000);
+  }
+  next();
+};
+```
+
+Dans `server.js` :
+```javascript
+const { trackActiveUsers } = require("./src/middleware/metrics");
+app.use(trackActiveUsers); // Avant les routes protégées
+```
+
+#### 📊 Utilisation dans Grafana
+**Query PromQL :**
+```promql
+active_users
+```
+
+**Type de panel :** `Stat` (affiche un grand nombre)
+
+**Résultat :** Nombre d'utilisateurs avec token valide actuellement connectés.
+
+#### 🧪 Test
+```bash
+curl http://13.XX.XX.XX:3000/metrics | grep active_users
+```
+
+**Commit :** "feat: Métrique active_users pour monitoring temps réel"
+
+---
+
 **Date de création** : 16 avril 2026  
-**Version** : 1.1 - Corrections bug déconnexion  
+**Version** : 1.2 - Métriques monitoring utilisateurs  
 **Auteur** : Babikir Ibrahim

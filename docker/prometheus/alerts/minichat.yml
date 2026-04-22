@@ -1,0 +1,29 @@
+groups:
+  - name: minichat
+    rules:
+      # Backend Down
+      - alert: MiniChatDown
+        expr: up{job="backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🔥 Mini-Chat est DOWN !"
+
+      # Users > 5 (pour test)
+      - alert: MiniChatTooManyUsers
+        expr: active_users > 5
+        for: 1m
+        labels:
+          severity: info
+        annotations:
+          summary: "Pic d'utilisateurs : {{ $value }}"
+
+      # CPU élevé
+      - alert: MiniChatHighCPU
+        expr: process_cpu_user_seconds_total > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU Mini-Chat élevé"

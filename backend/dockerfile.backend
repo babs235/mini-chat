@@ -1,22 +1,20 @@
-#Etape 1 : image de base Node.js
+# Etape 1 : image de base Node.js
 FROM node:20
 
 # Etape 2 : creer le dossier de l'application
 WORKDIR /app
 
-#etape 3 : copier package.json et package-log.json
+# Etape 3 : copier package.json et package-lock.json
 COPY package*.json ./
 
-#Etape 4 : installer le dependances 
+# Etape 4 : installer les dependances
 RUN npm install
 
-RUN npm install -g nodemon 
-
-#ETAPE 5 : copier tout le code backend
+# Etape 5 : copier tout le code backend
 COPY . .
 
-#Etape 6 : exposer le port 3000
+# Etape 6 : exposer le port 3000
 EXPOSE 3000
 
-#etape 7 : commande pour lancer serveur
-CMD ["nodemon", "server.js"]
+# Etape 7 : lancer serveur avec node (pas nodemon)
+CMD ["node", "server.js"]

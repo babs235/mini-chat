@@ -9,36 +9,25 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  // FIX: Keep connections alive (ping toutes les 10 sec)
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 10000,
-  // FIX: Timeout de connexion plus court pour retry rapide
-  connectTimeout: 10000,
-  // FIX: Idle timeout avant de fermer une connexion (doit être < wait_timeout MySQL)
-  idleTimeout: 600000, // 10 minutes (MySQL par défaut est 8h, mais Docker le réduit)
-  // Reconnexion auto si déconnecté
-  reconnect: true,
-  // Teste la connexion avant de l'utiliser
-  testOnBorrow: true
 });
 
-// FIX: Gestion propre des erreurs de connexion
-pool.on('connection', (conn) => {
-  console.log('✅ Nouvelle connexion MySQL établie');
-});
-
+// 🔥 FIX CRITIQUE: Gestion des erreurs sans crash
 pool.on('error', (err) => {
-  console.error(' Erreur MySQL Pool:', err.message);
-  // Ne pas crasher - le pool va retry automatiquement
-});
-
-// Test initial de connexion
-pool.getConnection((err, conn) => {
-  if (err) {
-    console.error(" Erreur connexion MySQL initiale:", err.message);
+  if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 4031) {
+    console.log('🔄 MySQL déconnecté par inactivité - le pool va recréer une connexion');
+    // Le pool recrée automatiquement une nouvelle connexion pour la prochaine requête
     return;
   }
-  console.log(" Connexion MySQL Pool réussie");
+  console.error('💥 Erreur MySQL Pool:', err.message);
+});
+
+// Test initial
+pool.getConnection((err, conn) => {
+  if (err) {
+    console.error("❌ Erreur initiale:", err.message);
+    return;
+  }
+  console.log("✅ Pool MySQL prêt");
   conn.release();
 });
 

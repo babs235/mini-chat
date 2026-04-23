@@ -9,8 +9,9 @@
 1. [Prérequis](#1-prérequis)
 2. [Infrastructure AWS (Terraform)](#2-infrastructure-aws-terraform)
 3. [Déploiement Application](#3-déploiement-application)
-4. [Dépannage](#4-dépannage)
-5. [Commandes Rapides](#5-commandes-rapides)
+4. [Monitoring & Alertes](#4-monitoring--alertes)
+5. [Dépannage](#5-dépannage)
+6. [Commandes Rapides](#6-commandes-rapides)
 
 ---
 
@@ -118,9 +119,189 @@ docker-compose logs -f backend
 
 ---
 
-## 4. DÉPANNAGE
+## 4. MONITORING & ALERTES
 
-### 4.1 Problèmes Courants et Solutions
+### 4.1 Architecture de Monitoring
+
+```
+┌─────────────────┐      ┌─────────────┐      ┌─────────────┐
+│  TON APP       │ ───▶ │  PROMETHEUS │ ───▶ │   GRAFANA  │
+│  (/metrics)    │      │  (récupère) │      │  (affiche)  │
+└─────────────────┘      └─────────────┘      └─────────────┘
+       ↑                        │                     │
+       │                        │                     ▼
+  Code méttriques         Fichier YAML         Discord/Slack
+  dans l'app              d'alertes             Notifications
+```
+
+### 4.2 Métriques Disponibles
+
+| Métrique | Description | Fichier source |
+|----------|-------------|----------------|
+| `http_requests_total` | Nombre total de requêtes HTTP | `backend/src/middleware/metrics.js` |
+| `active_users` | Utilisateurs connectés (avec token valide) | `backend/src/middleware/metrics.js` |
+| `messages_created_total` | Nombre total de messages créés | `backend/src/middleware/metrics.js` |
+| `process_cpu_user_seconds_total` | CPU utilisé par le processus | `collectDefaultMetrics()` |
+| `process_resident_memory_bytes` | RAM utilisée par le processus | `collectDefaultMetrics()` |
+
+### 4.3 Ajouter une Nouvelle Métrique
+
+**Étape 1 : Créer le compteur dans `metrics.js`**
+```javascript
+const newMetric = new client.Counter({
+  name: "new_metric_total",
+  help: "Description de la métrique"
+});
+register.registerMetric(newMetric);
+module.exports = { ..., newMetric };
+```
+
+**Étape 2 : Importer et incrémenter dans le contrôleur**
+```javascript
+const { newMetric } = require("../middleware/metrics");
+
+// Dans la fonction où l'action se produit
+newMetric.inc(); // +1
+```
+
+**Étape 3 : Redémarrer le backend**
+```bash
+cd docker
+docker-compose restart backend
+```
+
+### 4.4 Configuration Grafana
+
+#### Accès
+- **URL** : http://13.38.35.35:3001
+- **Login** : admin / admin
+
+#### Ajouter Prometheus comme source de données
+1. Menu ☰ → **Configuration** → **Data sources**
+2. **Add data source** → **Prometheus**
+3. **URL** : `http://prometheus:9090`
+4. **Save & Test**
+
+#### Créer un Dashboard
+1. Menu ☰ → **Dashboards** → **New** → **New dashboard**
+2. **Add visualization**
+3. Sélectionner **Prometheus**
+4. Entrer la requête PromQL (ex: `active_users`)
+5. Choisir le type de panel (Stat, Gauge, Time series)
+6. **Back to dashboard**
+7. Répéter pour ajouter d'autres panels
+8. **Save dashboard**
+
+#### Requêtes PromQL Utiles
+| Ce que tu veux | Requête |
+|----------------|---------|
+| Requêtes totales | `http_requests_total` |
+| Users actifs | `active_users` |
+| Requêtes/sec | `rate(http_requests_total[5m])` |
+| Requêtes/min | `rate(http_requests_total[1m]) * 60` |
+| CPU % | `rate(process_cpu_user_seconds_total[5m]) * 100` |
+| RAM en MB | `process_resident_memory_bytes / 1048576` |
+
+### 4.5 Configuration des Alertes
+
+#### Créer un Contact Point (Discord)
+1. Menu ☰ → **Alerting** → **Contact points**
+2. **Add contact point**
+3. **Name** : `Discord Mini-Chat`
+4. **Integration** : `Webhook`
+5. **URL** : [Webhook Discord]
+6. **Save**
+
+#### Personnaliser le message Discord
+Dans le contact point Discord :
+1. Cocher **"Custom message"**
+2. Coller ce template :
+```json
+{
+  "content": "🚨 **{{ .Labels.alertname }}**\n\n{{ .Annotations.summary }}\n\n📊 Valeur : {{ .Value }}"
+}
+```
+
+#### Créer une Notification Policy
+1. Menu ☰ → **Alerting** → **Notification policies**
+2. **New child policy**
+3. **Contact point** : `Discord Mini-Chat`
+4. **Save**
+
+#### Créer une Alert Rule
+1. Menu ☰ → **Alerting** → **Alert rules**
+2. **New alert rule**
+3. **Name** : Ex: `Trop de messages`
+4. **Metric** : Ex: `messages_created_total`
+5. **Alert condition** : `Is above 50`
+6. **Pending period** : `10s`
+7. **Folder** : `Mini-Chat`
+8. **Notifications** → **Contact point** : `Discord Mini-Chat`
+9. **Summary** : `📢 {{ $value }} messages créés !`
+10. **Save**
+
+### 4.6 Exemples d'Alertes
+
+| Alert Rule | Métrique | Condition | Quand ça se déclenche |
+|------------|----------|-----------|---------------------|
+| Backend Down | `up{job="backend"}` | Is below 1 | Le backend ne répond plus |
+| Trop de requêtes/sec | `rate(http_requests_total[1m])` | Is above 10 | Plus de 10 req/sec |
+| Pics d'utilisateurs | `active_users` | Is above 5 | Plus de 5 users connectés |
+| CPU élevé | `rate(process_cpu_user_seconds_total[5m]) * 100` | Is above 80 | CPU > 80% pendant 2 min |
+| RAM élevée | `process_resident_memory_bytes / 1048576` | Is above 500 | RAM > 500 MB |
+| Trop de messages | `messages_created_total` | Is above 50 | Plus de 50 messages créés |
+
+### 4.7 Fichiers de Configuration
+
+#### Prometheus : `docker/prometheus.yml`
+```yaml
+scrape_configs:
+  - job_name: "backend"
+    static_configs:
+      - targets: ["backend:3000"]
+```
+
+#### Alertes Prometheus : `docker/prometheus/alerts/minichat.yml`
+```yaml
+groups:
+  - name: minichat
+    rules:
+      - alert: MiniChatDown
+        expr: up{job="backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "🔥 Mini-Chat est DOWN !"
+```
+
+**Note** : Les alertes peuvent être gérées soit via fichiers YAML (Alertmanager), soit via l'interface Grafana (recommandé pour la simplicité).
+
+### 4.8 Mise à jour sur AWS
+
+Après avoir modifié le code de monitoring :
+```bash
+# 1. Commit et push
+git add backend/src/middleware/metrics.js backend/src/routes/messages.js
+git commit -m "feat: add new metric"
+git push
+
+# 2. Sur AWS
+ssh -i ~/.ssh/mini-chat-key.pem ubuntu@13.38.35.35
+cd /home/ubuntu/mini-chat
+git pull
+cd docker
+docker-compose restart backend
+
+# 3. Vérifier la métrique
+curl http://localhost:3000/metrics | grep messages_created_total
+```
+
+---
+
+## 5. DÉPANNAGE
+
+### 5.1 Problèmes Courants et Solutions
 
 | Problème | Symptôme | Solution |
 |----------|----------|----------|
@@ -130,7 +311,7 @@ docker-compose logs -f backend
 | **Token invalide** | Déconnexion immédiate | Vérifier JWT_SECRET identique dans auth.js et middleware |
 | **IP changée** | App ne répond plus | Mettre à jour l'IP dans les fichiers frontend ou utiliser config.js dynamique |
 
-### 4.2 Commandes de Debug
+### 5.2 Commandes de Debug
 
 ```bash
 # Voir les logs d'un service
@@ -151,7 +332,7 @@ docker-compose down -v
 docker-compose up -d --build
 ```
 
-### 4.3 Historique des Problèmes Résolus
+### 5.3 Historique des Problèmes Résolus
 
 **Problème 1: Backend container unhealthy**
 - **Cause**: MySQL n'était pas prêt quand le backend démarrait
@@ -171,9 +352,9 @@ docker-compose up -d --build
 
 ---
 
-## 5. COMMANDES RAPIDES
+## 6. COMMANDES RAPIDES
 
-### 5.1 Cheat Sheet
+### 6.1 Cheat Sheet
 
 ```bash
 # 🔧 DEVELOPPEMENT LOCAL
@@ -363,6 +544,110 @@ curl http://13.XX.XX.XX:3000/metrics | grep active_users
 
 ---
 
+### 23 Avril 2026 - Monitoring Complet : Métriques + Alertes + Discord
+
+#### 🎯 Objectif
+Mettre en place un système de monitoring complet avec Prometheus, Grafana et des alertes Discord.
+
+#### 🔧 Ajout de la métrique messages_created_total
+
+**Fichier modifié** : `backend/src/middleware/metrics.js`
+```javascript
+// Counter pour messages créés
+const messagesCreated = new client.Counter({
+  name: "messages_created_total",
+  help: "Nombre total de messages créés"
+});
+register.registerMetric(messagesCreated);
+module.exports = { ..., messagesCreated };
+```
+
+**Fichier modifié** : `backend/src/routes/messages.js`
+```javascript
+const { messagesCreated } = require("../middleware/metrics");
+
+// Après insertion réussie du message
+messagesCreated.inc();
+```
+
+#### 📊 Configuration Grafana
+
+**Source de données Prometheus** :
+- URL : `http://prometheus:9090`
+- Configurée dans l'interface Grafana
+
+**Dashboard créé** :
+- Panel 1 : Requêtes HTTP totales (`http_requests_total`)
+- Panel 2 : Utilisateurs actifs (`active_users`)
+- Panel 3 : Requêtes par seconde (`rate(http_requests_total[5m])`)
+
+#### 🚨 Configuration des Alertes
+
+**Contact Point Discord** :
+- Type : Webhook
+- URL : Webhook Discord configuré
+- Message personnalisé :
+```json
+{
+  "content": "🚨 **{{ .Labels.alertname }}**\n\n{{ .Annotations.summary }}\n\n📊 Valeur : {{ .Value }}"
+}
+```
+
+**Notification Policy** :
+- Toutes les alertes → Discord Mini-Chat
+
+**Alert Rules créées** :
+1. `beacoup de users` : `active_users > 2` (se déclenche à 2+ users)
+2. Autres exemples documentés : Backend Down, CPU élevé, RAM élevée, Trop de messages
+
+#### 🧹 Nettoyage des fichiers d'alertes
+
+**Fichier modifié** : `docker/prometheus/alerts/minichat.yml`
+- Suppression de `TestAlert` (alerte de test toujours active)
+- Suppression de `MiniChatHighTraffic` (trop de requêtes)
+- Correction de l'alerte CPU : `rate(process_cpu_user_seconds_total[5m]) * 100 > 80`
+
+#### 📚 Documentation ajoutée
+
+**Section ajoutée au GUIDE_DEPLOIEMENT.md** :
+- Architecture de monitoring
+- Métriques disponibles
+- Comment ajouter une nouvelle métrique
+- Configuration Grafana (data source, dashboard, requêtes PromQL)
+- Configuration des alertes (contact point, notification policy, alert rules)
+- Exemples d'alertes
+- Fichiers de configuration
+- Mise à jour sur AWS
+
+#### 🔄 Mise à jour sur AWS
+
+Après modifications :
+```bash
+git add backend/src/middleware/metrics.js backend/src/routes/messages.js docker/prometheus/alerts/minichat.yml
+git commit -m "feat: add messages_created metric and clean alerts"
+git push
+
+# Sur AWS
+ssh -i ~/.ssh/mini-chat-key.pem ubuntu@13.38.35.35
+cd /home/ubuntu/mini-chat
+git pull
+cd docker
+docker-compose restart backend
+```
+
+#### 💡 Concepts appris
+
+- **Flux de données** : App → Prometheus → Grafana → Discord
+- **Métriques** : Counter (incrémente), Gauge (monte/descend), Histogram (temps)
+- **PromQL** : Langage de requête Prometheus (`rate()`, `sum()`, etc.)
+- **Alertes Grafana** : Indépendantes des dashboards, créées via interface
+- **Contact Points** : Créés une seule fois, réutilisés par toutes les alertes
+- **Notification Policies** : Règles de routage des alertes
+
+**Commit** : "feat: add messages_created metric and clean alerts"
+
+---
+
 **Date de création** : 16 avril 2026  
-**Version** : 1.2 - Métriques monitoring utilisateurs  
+**Version** : 1.3 - Monitoring complet avec alertes Discord  
 **Auteur** : Babikir Ibrahim

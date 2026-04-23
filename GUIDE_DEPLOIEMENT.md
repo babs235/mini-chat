@@ -1,10 +1,10 @@
-# 🚀 GUIDE DE DÉPLOIEMENT
+# GUIDE DE DÉPLOIEMENT
 
 ## Mini-Chat - Processus Complet Documenté
 
 ---
 
-## 📖 TABLE DES MATIÈRES
+## TABLE DES MATIÈRES
 
 1. [Prérequis](#1-prérequis)
 2. [Infrastructure AWS (Terraform)](#2-infrastructure-aws-terraform)
@@ -218,7 +218,7 @@ Dans le contact point Discord :
 2. Coller ce template :
 ```json
 {
-  "content": "🚨 **{{ .Labels.alertname }}**\n\n{{ .Annotations.summary }}\n\n📊 Valeur : {{ .Value }}"
+  "content": "**{{ .Labels.alertname }}**\n\n{{ .Annotations.summary }}\n\nValeur : {{ .Value }}"
 }
 ```
 
@@ -272,7 +272,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "🔥 Mini-Chat est DOWN !"
+          summary: "Mini-Chat est DOWN !"
 ```
 
 **Note** : Les alertes peuvent être gérées soit via fichiers YAML (Alertmanager), soit via l'interface Grafana (recommandé pour la simplicité).
@@ -332,7 +332,42 @@ docker-compose down -v
 docker-compose up -d --build
 ```
 
-### 5.3 Historique des Problèmes Résolus
+### 5.4 Backup de la Base de Données
+
+Pour effectuer un backup de la base de données MySQL :
+
+```bash
+# 1. Creer le repertoire de backups local
+mkdir -p backups
+
+# 2. Executer le script de backup
+./scripts/backup-mysql.sh 13.38.35.35 ~/.ssh/mini-chat-key.pem
+
+# Le backup sera sauvegarde dans ./backups/mini_chat_backup_<date>.sql.gz
+```
+
+**Restauration d'un backup :**
+```bash
+# 1. Telecharger le backup sur le serveur
+scp -i ~/.ssh/mini-chat-key.pem ./backups/mini_chat_backup_20260423_120000.sql.gz ubuntu@13.38.35.35:/home/ubuntu/backups/
+
+# 2. Decompresser et restaurer
+ssh -i ~/.ssh/mini-chat-key.pem ubuntu@13.38.35.35
+cd /home/ubuntu/backups
+gunzip mini_chat_backup_20260423_120000.sql.gz
+docker exec -i docker_db_1 mysql -u root -p$(grep MYSQL_ROOT_PASSWORD /home/ubuntu/mini-chat/docker/.env | cut -d'=' -f2) mini_chat < mini_chat_backup_20260423_120000.sql
+```
+
+**Automatisation du backup (cron) :**
+```bash
+# Ajouter une tache cron pour un backup quotidien
+ssh -i ~/.ssh/mini-chat-key.pem ubuntu@13.38.35.35
+crontab -e
+# Ajouter cette ligne pour un backup quotidien a 2h du matin
+0 2 * * * /home/ubuntu/mini-chat/scripts/backup-mysql.sh
+```
+
+### 5.5 Historique des Problèmes Résolus
 
 **Problème 1: Backend container unhealthy**
 - **Cause**: MySQL n'était pas prêt quand le backend démarrait
@@ -357,17 +392,17 @@ docker-compose up -d --build
 ### 6.1 Cheat Sheet
 
 ```bash
-# 🔧 DEVELOPPEMENT LOCAL
+# DEVELOPPEMENT LOCAL
 npm install          # Installer dépendances
 npm start            # Lancer en local
 
-# 🐳 DOCKER
+# DOCKER
 ./scripts/deploy.sh  # Script de déploiement complet
 
-# ☁️ AWS
+# AWS
 ./scripts/aws-deploy.sh  # Déploiement Terraform + Docker
 
-# 🔍 MONITORING
+# MONITORING
 curl http://13.38.35.35:9090  # Prometheus
 curl http://13.38.35.35:3001  # Grafana (admin/admin)
 ```
@@ -382,7 +417,7 @@ curl http://13.38.35.35:3001  # Grafana (admin/admin)
 
 ---
 
-## 📚 ANNEXES
+## ANNEXES
 
 ### A. Structure des Fichiers Importants
 
@@ -424,11 +459,11 @@ mini-chat/
 
 ---
 
-## 📝 JOURNAL DES CORRECTIONS ET AMÉLIORATIONS
+## JOURNAL DES CORRECTIONS ET AMÉLIORATIONS
 
 ### 17 Avril 2026 - Correction Bug Déconnexion + Design Amélioré
 
-#### 🔧 Problème identifié ce matin
+#### Problème identifié ce matin
 J'ai remarqué que quand je me connectais, j'étais automatiquement déconnecté après quelques instants. En regardant le code dans `chat.js`, j'ai compris que le token JWT était récupéré **une seule fois** au chargement de la page :
 
 ```javascript
@@ -438,7 +473,7 @@ const token = localStorage.getItem("token");  // Lu une fois au chargement
 
 Si le token changeait ou s'il y avait un problème de synchronisation, le frontend utilisait un token obsolète.
 
-#### ✅ Solution appliquée
+#### Solution appliquée
 J'ai remplacé par des **fonctions qui récupèrent le token frais à chaque requête** :
 
 ```javascript
@@ -460,7 +495,7 @@ if (!token) {
 
 **Fichiers modifiés** : `backend/frontend/js/chat.js`
 
-#### 🎨 Améliorations design ajoutées
+#### Améliorations design ajoutées
 J'ai enrichi le CSS avec de nouvelles animations et effets :
 
 1. **Nouvelles animations** : `slideUp`, `scaleIn`, `pulse`, `shake`
@@ -472,7 +507,7 @@ J'ai enrichi le CSS avec de nouvelles animations et effets :
 
 **Fichier modifié** : `backend/frontend/css/styles.css`
 
-#### 🌐 IP déjà dynamique (config.js)
+#### IP déjà dynamique (config.js)
 J'avais déjà créé `config.js` qui détecte automatiquement l'IP du serveur. Quand je redémarre mon instance AWS et que l'IP change, l'application s'adapte sans que j'aie besoin de modifier le code.
 
 ```javascript
@@ -490,10 +525,10 @@ const getApiUrl = () => {
 
 ### 17 Avril 2026 (après-midi) - Métrique : Utilisateurs Actifs
 
-#### 🎯 Objectif
+#### Objectif
 Ajouter une métrique Prometheus pour suivre le nombre d'utilisateurs connectés en temps réel.
 
-#### 🔧 Implémentation
+#### Implémentation
 J'ai modifié `backend/src/middleware/metrics.js` pour ajouter :
 
 ```javascript
@@ -525,7 +560,7 @@ const { trackActiveUsers } = require("./src/middleware/metrics");
 app.use(trackActiveUsers); // Avant les routes protégées
 ```
 
-#### 📊 Utilisation dans Grafana
+#### Utilisation dans Grafana
 **Query PromQL :**
 ```promql
 active_users
@@ -535,7 +570,7 @@ active_users
 
 **Résultat :** Nombre d'utilisateurs avec token valide actuellement connectés.
 
-#### 🧪 Test
+#### Test
 ```bash
 curl http://13.XX.XX.XX:3000/metrics | grep active_users
 ```
@@ -546,10 +581,10 @@ curl http://13.XX.XX.XX:3000/metrics | grep active_users
 
 ### 23 Avril 2026 - Monitoring Complet : Métriques + Alertes + Discord
 
-#### 🎯 Objectif
+#### Objectif
 Mettre en place un système de monitoring complet avec Prometheus, Grafana et des alertes Discord.
 
-#### 🔧 Ajout de la métrique messages_created_total
+#### Ajout de la métrique messages_created_total
 
 **Fichier modifié** : `backend/src/middleware/metrics.js`
 ```javascript
@@ -570,7 +605,7 @@ const { messagesCreated } = require("../middleware/metrics");
 messagesCreated.inc();
 ```
 
-#### 📊 Configuration Grafana
+#### Configuration Grafana
 
 **Source de données Prometheus** :
 - URL : `http://prometheus:9090`
@@ -581,7 +616,7 @@ messagesCreated.inc();
 - Panel 2 : Utilisateurs actifs (`active_users`)
 - Panel 3 : Requêtes par seconde (`rate(http_requests_total[5m])`)
 
-#### 🚨 Configuration des Alertes
+#### Configuration des Alertes
 
 **Contact Point Discord** :
 - Type : Webhook
@@ -589,7 +624,7 @@ messagesCreated.inc();
 - Message personnalisé :
 ```json
 {
-  "content": "🚨 **{{ .Labels.alertname }}**\n\n{{ .Annotations.summary }}\n\n📊 Valeur : {{ .Value }}"
+  "content": "**{{ .Labels.alertname }}**\n\n{{ .Annotations.summary }}\n\nValeur : {{ .Value }}"
 }
 ```
 
@@ -600,14 +635,14 @@ messagesCreated.inc();
 1. `beacoup de users` : `active_users > 2` (se déclenche à 2+ users)
 2. Autres exemples documentés : Backend Down, CPU élevé, RAM élevée, Trop de messages
 
-#### 🧹 Nettoyage des fichiers d'alertes
+#### Nettoyage des fichiers d'alertes
 
 **Fichier modifié** : `docker/prometheus/alerts/minichat.yml`
 - Suppression de `TestAlert` (alerte de test toujours active)
 - Suppression de `MiniChatHighTraffic` (trop de requêtes)
 - Correction de l'alerte CPU : `rate(process_cpu_user_seconds_total[5m]) * 100 > 80`
 
-#### 📚 Documentation ajoutée
+#### Documentation ajoutée
 
 **Section ajoutée au GUIDE_DEPLOIEMENT.md** :
 - Architecture de monitoring
@@ -619,7 +654,7 @@ messagesCreated.inc();
 - Fichiers de configuration
 - Mise à jour sur AWS
 
-#### 🔄 Mise à jour sur AWS
+#### Mise à jour sur AWS
 
 Après modifications :
 ```bash
@@ -635,7 +670,7 @@ cd docker
 docker-compose restart backend
 ```
 
-#### 💡 Concepts appris
+#### Concepts appris
 
 - **Flux de données** : App → Prometheus → Grafana → Discord
 - **Métriques** : Counter (incrémente), Gauge (monte/descend), Histogram (temps)

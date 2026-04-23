@@ -2,19 +2,19 @@ const mysql = require("mysql2");
 
 // POOL de connexions - évite les déconnexions par inactivité
 const pool = mysql.createPool({
-  host: "db",
-  user: "root",
-  password: "123456",
-  database: "mini_chat",
+  host: process.env.DB_HOST || "db",
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME || "mini_chat",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
 });
 
-// 🔥 FIX CRITIQUE: Gestion des erreurs sans crash
+// FIX CRITIQUE: Gestion des erreurs sans crash
 pool.on('error', (err) => {
   if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 4031) {
-    console.log('🔄 MySQL déconnecté par inactivité - le pool va recréer une connexion');
+    console.log(' MySQL déconnecté par inactivité - le pool va recréer une connexion');
     // Le pool recrée automatiquement une nouvelle connexion pour la prochaine requête
     return;
   }

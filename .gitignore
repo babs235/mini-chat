@@ -3,7 +3,6 @@ node_modules/
 .DS_Store 
 
 # Documentation locale - Ne pas versionner (sauf README.md et GUIDE_DEPLOIEMENT.md)
-CAHIER_DES_CHARGES*.md
 PROMPT*.md
 PROMETHEUS*.md
 RENDU*.md

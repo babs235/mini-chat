@@ -4,7 +4,7 @@ const db = require("../config/database");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 
-const SECRET = process.env.JWT_SECRET || "MiniChat2024!@#$%^&*()_+SecureKey_12345";
+const SECRET = process.env.JWT_SECRET;
 
 // REGISTER
 router.post("/register", async (req, res) => {

@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/database");
 const verifyToken = require("../middleware/auth");
+const { messagesCreated } = require("../middleware/metrics");
 
 // 🔒 Fonction d'échappement XSS
 function escapeHtml(text) {
@@ -39,6 +40,9 @@ router.post("/", verifyToken, async (req, res) => {
     
     // FIX P0: Pool promise - async/await
     await db.query(sql, [user_id, safeMessage]);
+
+    // 🔥 Incrémenter le compteur de messages
+    messagesCreated.inc();
 
     res.json({ message: "Message envoyé" });
 

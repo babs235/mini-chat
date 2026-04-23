@@ -21,18 +21,9 @@ groups:
 
       # CPU élevé
       - alert: MiniChatHighCPU
-        expr: process_cpu_user_seconds_total > 0.8
+        expr: rate(process_cpu_user_seconds_total[5m]) * 100 > 80
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: "CPU Mini-Chat élevé"
-
-      # Trop de requêtes
-      - alert: MiniChatHighTraffic
-        expr: rate(http_requests_total[1m]) > 100
-        for: 2m
-        labels:
-          severity: warning
-        annotations:
-          summary: "Trafic élevé : {{ $value }} req/sec"
+          summary: "CPU Mini-Chat élevé : {{ $value }}%"

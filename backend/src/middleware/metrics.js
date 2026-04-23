@@ -19,9 +19,16 @@ const activeUsersGauge = new client.Gauge({
   help: "Nombre d'utilisateurs actuellement connectés (avec token valide)"
 });
 
+// 🔥 NOUVEAU : Counter pour messages créés
+const messagesCreated = new client.Counter({
+  name: "messages_created_total",
+  help: "Nombre total de messages créés"
+});
+
 // Enregistrer les métriques
 register.registerMetric(httpRequests);
 register.registerMetric(activeUsersGauge);
+register.registerMetric(messagesCreated);
 
 // 🔥 FIX P0: Map avec timestamp pour éviter fuites mémoire
 const activeUsersMap = new Map();
@@ -70,5 +77,6 @@ const trackActiveUsers = (req, res, next) => {
 module.exports = {
   register,
   metricsMiddleware,
-  trackActiveUsers  // 🔥 Exporté pour l'utiliser dans auth.js
+  trackActiveUsers,
+  messagesCreated  // 🔥 Exporté pour l'utiliser dans messages.js
 };

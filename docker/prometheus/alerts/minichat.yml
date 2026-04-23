@@ -27,3 +27,12 @@ groups:
           severity: warning
         annotations:
           summary: "CPU Mini-Chat élevé"
+
+      # Trop de requêtes
+      - alert: MiniChatHighTraffic
+        expr: rate(http_requests_total[1m]) > 100
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Trafic élevé : {{ $value }} req/sec"

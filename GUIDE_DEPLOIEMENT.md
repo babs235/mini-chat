@@ -372,15 +372,6 @@ gunzip mini_chat_backup_20260423_120000.sql.gz
 docker exec -i docker_db_1 mysql -u root -p$(grep MYSQL_ROOT_PASSWORD /home/ubuntu/mini-chat/docker/.env | cut -d'=' -f2) mini_chat < mini_chat_backup_20260423_120000.sql
 ```
 
-**Automatisation du backup (cron) :**
-```bash
-# Ajouter une tache cron pour un backup quotidien
-ssh -i ~/.ssh/mini-chat-key.pem ubuntu@13.38.35.35
-crontab -e
-# Ajouter cette ligne pour un backup quotidien a 2h du matin
-0 2 * * * /home/ubuntu/mini-chat/scripts/backup-mysql.sh
-```
-
 ### 5.5 Historique des Problèmes Résolus
 
 **Problème 1: Backend container unhealthy**

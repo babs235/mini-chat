@@ -466,7 +466,7 @@ JWT_SECRET=votre_secret_jwt
 
 **Usage** :
 ```bash
-./scripts/backup-mysql.sh <IP_AWS> <CHEF_CLE_SSH> [--setup-cron]
+./scripts/backup-mysql.sh <IP_AWS> <CHEF_CLE_SSH>
 ```
 
 **Fonctionnalités** :
@@ -474,7 +474,6 @@ JWT_SECRET=votre_secret_jwt
 - Compression du backup (gzip)
 - Téléchargement du backup localement
 - Nettoyage des vieux backups (garde les 7 derniers)
-- Option `--setup-cron` pour configurer automatiquement un backup quotidien à 2h du matin
 
 **Restauration** :
 ```bash

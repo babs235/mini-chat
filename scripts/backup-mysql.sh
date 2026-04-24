@@ -1,28 +1,19 @@
 #!/bin/bash
 
 # Script de backup de la base de données MySQL
-# Usage: ./scripts/backup-mysql.sh <IP_AWS> <CHEF_CLE_SSH> [--setup-cron]
+# Usage: ./scripts/backup-mysql.sh <IP_AWS> <CHEF_CLE_SSH>
 
 set -e
 
 IP_AWS=$1
 SSH_KEY=$2
-SETUP_CRON=$3
 BACKUP_DIR="/home/ubuntu/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 BACKUP_FILE="mini_chat_backup_$DATE.sql"
 
 if [ -z "$IP_AWS" ] || [ -z "$SSH_KEY" ]; then
-    echo "Usage: $0 <IP_AWS> <CHEF_CLE_SSH> [--setup-cron]"
+    echo "Usage: $0 <IP_AWS> <CHEF_CLE_SSH>"
     exit 1
-fi
-
-# Configuration automatique de cron si demandé
-if [ "$SETUP_CRON" = "--setup-cron" ]; then
-    echo "Configuration automatique de cron..."
-    CRON_JOB="0 2 * * * /home/ubuntu/mini-chat/scripts/backup-mysql.sh $IP_AWS ~/.ssh/mini-chat-key.pem"
-    ssh -i "$SSH_KEY" ubuntu@$IP_AWS "(crontab -l 2>/dev/null | grep -v 'backup-mysql'; echo '$CRON_JOB') | crontab -"
-    echo "Cron configure pour un backup quotidien a 2h du matin"
 fi
 
 echo "Backup de la base de donnees MySQL sur $IP_AWS"

@@ -291,6 +291,7 @@ mini-chat/
 │
 ├── scripts/
 │   ├── backup-mysql.sh          # Backup de la base de données MySQL
+│   ├── deploy-with-backup.sh    # Déploiement avec backup automatique
 │   ├── deploy.sh                # Script déploiement rapide
 │   └── aws-deploy.sh            # Déploiement Terraform + Docker
 │
@@ -465,7 +466,7 @@ JWT_SECRET=votre_secret_jwt
 
 **Usage** :
 ```bash
-./scripts/backup-mysql.sh <IP_AWS> <CHEF_CLE_SSH>
+./scripts/backup-mysql.sh <IP_AWS> <CHEF_CLE_SSH> [--setup-cron]
 ```
 
 **Fonctionnalités** :
@@ -473,6 +474,7 @@ JWT_SECRET=votre_secret_jwt
 - Compression du backup (gzip)
 - Téléchargement du backup localement
 - Nettoyage des vieux backups (garde les 7 derniers)
+- Option `--setup-cron` pour configurer automatiquement un backup quotidien à 2h du matin
 
 **Restauration** :
 ```bash
@@ -481,11 +483,22 @@ gunzip mini_chat_backup_20260423_120000.sql.gz
 docker exec -i docker_db_1 mysql -u root -p$(grep MYSQL_ROOT_PASSWORD /home/ubuntu/mini-chat/docker/.env | cut -d'=' -f2) mini_chat < mini_chat_backup_20260423_120000.sql
 ```
 
-**Automatisation (cron)** :
+### 9.2 Script de Déploiement avec Backup
+
+**Fichier** : `scripts/deploy-with-backup.sh`
+
+**Objectif** : Déployer l'application avec un backup automatique avant chaque déploiement.
+
+**Usage** :
 ```bash
-# Backup quotidien à 2h du matin
-0 2 * * * /home/ubuntu/mini-chat/scripts/backup-mysql.sh
+./scripts/deploy-with-backup.sh <IP_AWS> <CHEF_CLE_SSH>
 ```
+
+**Fonctionnalités** :
+- Backup automatique de la base de données
+- Git pull pour récupérer les dernières modifications
+- Redémarrage des containers Docker
+- Vérification du statut des containers
 
 ---
 

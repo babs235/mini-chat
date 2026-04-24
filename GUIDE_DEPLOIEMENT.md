@@ -297,6 +297,20 @@ docker-compose restart backend
 curl http://localhost:3000/metrics | grep messages_created_total
 ```
 
+### 4.9 Déploiement avec Backup Automatique
+
+Pour mettre à jour l'application avec un backup automatique avant le déploiement :
+
+```bash
+./scripts/deploy-with-backup.sh 13.38.35.35 ~/.ssh/mini-chat-key.pem
+```
+
+Ce script effectue automatiquement :
+1. Backup de la base de données MySQL
+2. Git pull pour récupérer les dernières modifications
+3. Redémarrage des containers Docker
+4. Vérification du statut des containers
+
 ---
 
 ## 5. DÉPANNAGE

@@ -82,5 +82,43 @@ jobs:
           cd ansible
           ansible-lint playbook.yml || echo "Lint warnings"
 
-  # Note: Le déploiement sur EC2 se fait manuellement via SSH
-  # voir README.md pour les instructions
+
+  deploy:
+    name: validation et deploiement par terraform
+    runs-on: ubuntu-latest
+    needs: [tests, build]
+    steps: 
+      - name: recuperation du code
+        uses: actions/checkout@v4
+      
+      - name: installer terraform
+        uses:  hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.5'
+         
+      - name: inistialisation de terraform
+        run: |
+          cd terraform
+          terraform init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      
+      - name: validation de fichier installer 
+        run: |
+          cd terraform
+          terraform validate
+      
+      - name: check 
+        run: |
+          cd terraform
+          terraform fmt -check
+      
+      - name : terraform apply
+        run: |
+          cd terraform
+          terraform apply -auto-approve -var-file="terraform.tfvars"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+

@@ -95,6 +95,6 @@ jobs:
           cp terraform.tfvars.example terraform.tfvars
           terraform apply -auto-approve -var-file="terraform.tfvars.example"
         env:
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          SSH_KEY: ${{ secrets.SSH_KEY }}
+          db_password: ${{ secrets.db_password }}
+          key_name: ${{ secrets.key_name }}
 

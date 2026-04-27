@@ -137,7 +137,7 @@ data "aws_ami" "ubuntu" {
 # Instance EC2 - Mon serveur applicatif
 resource "aws_instance" "mini_chat_ec2" {
   ami                    = data.aws_ami.ubuntu.id # AMI trouvée automatiquement
-  instance_type          = "t3.micro"             # Gratuit (free tier)
+  instance_type          = "t3.small"             # Plus de ressources CPU/RAM
   key_name               = var.key_name           # Clé SSH
   vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]
   subnet_id              = aws_subnet.mini_chat_public_subnet.id

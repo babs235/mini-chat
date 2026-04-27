@@ -92,7 +92,8 @@ jobs:
       - name : terraform apply
         run: |
           cd terraform
-          terraform apply -auto-approve 
+          cp terraform.tfvars.example terraform.tfvars
+          terraform apply -auto-approve -var-file="terraform.tfvars.example"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

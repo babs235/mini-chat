@@ -34,6 +34,7 @@ jobs:
         working-directory: ./backend
         run: npm test || echo "Pas de tests pour le moment"
 
+
   # === JOB 2 : CONSTRUCTION DOCKER ===
   build:
     name: Build Docker
@@ -47,6 +48,9 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Construction des images Docker
+        env:
+          MYSQL_ROOT_PASSWORD: secret.${{ secrets.MYSQL_ROOT_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
         run: |
           cd docker
           docker compose build
@@ -54,12 +58,12 @@ jobs:
       - name: Test des conteneurs Docker
         run: |
           cd docker
-          docker compose up -d
+          docker compose up --build
           sleep 10
           docker ps
-          docker restart backend  
           curl -f http://localhost:3000 || exit 1
           docker compose down
+
 
   # === JOB 3 : VÉRIFICATION ANSIBLE ===
   ansible-lint:

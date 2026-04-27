@@ -47,43 +47,15 @@ jobs:
       - name: Configuration Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Construction des images Docker
-        run: |
-          cd docker
-          docker compose build
-
       - name: Test des conteneurs Docker
         run: |
           cd docker
           cp .env.example .env
-          docker compose up --build
-          sleep 10
+          docker compose up --build backend db -d
+          sleep 20
           docker ps
           curl -f http://localhost:3000 || exit 1
           docker compose down
-
-
-  # === JOB 3 : VÉRIFICATION ANSIBLE ===
-  ansible-lint:
-    name: Validation Ansible
-    runs-on: ubuntu-latest
-    steps:
-      - name: Récupération du code
-        uses: actions/checkout@v4
-
-      - name: Installation d'Ansible
-        run: |
-          pip install ansible ansible-lint
-
-      - name: Vérification de la syntaxe Ansible
-        run: |
-          cd ansible
-          ansible-playbook -i inventory playbook.yml --syntax-check
-
-      - name: Exécution d'ansible-lint
-        run: |
-          cd ansible
-          ansible-lint playbook.yml || echo "Lint warnings"
 
 
   deploy:

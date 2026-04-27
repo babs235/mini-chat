@@ -1,6 +1,6 @@
 # VPC - Mon réseau virtuel privé sur AWS
 resource "aws_vpc" "mini_chat_vpc" {
-  cidr_block           = "10.0.0.0/16"  # 65,536 IPs disponibles
+  cidr_block           = "10.0.0.0/16" # 65,536 IPs disponibles
   enable_dns_hostnames = true
   enable_dns_support   = true
 
@@ -12,9 +12,9 @@ resource "aws_vpc" "mini_chat_vpc" {
 # Subnet public - où je mets mon serveur EC2 (accessible depuis Internet)
 resource "aws_subnet" "mini_chat_public_subnet" {
   vpc_id                  = aws_vpc.mini_chat_vpc.id
-  cidr_block              = "10.0.1.0/24"  # 256 IPs
+  cidr_block              = "10.0.1.0/24" # 256 IPs
   availability_zone       = "eu-west-3a"
-  map_public_ip_on_launch = true  # Attribue automatiquement une IP publique
+  map_public_ip_on_launch = true # Attribue automatiquement une IP publique
 
   tags = {
     Name = "mini-chat-public-subnet"
@@ -62,7 +62,7 @@ resource "aws_security_group" "mini_chat_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # À restreindre en prod !
+    cidr_blocks = ["0.0.0.0/0"] # À restreindre en prod !
   }
 
   # Application - port 3000 (backend)
@@ -121,7 +121,7 @@ resource "aws_security_group" "mini_chat_sg" {
 # Data source pour chercher l'AMI Ubuntu 22.04 automatiquement
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"]  # Canonical (Ubuntu)
+  owners      = ["099720109477"] # Canonical (Ubuntu)
 
   filter {
     name   = "name"
@@ -136,13 +136,13 @@ data "aws_ami" "ubuntu" {
 
 # Instance EC2 - Mon serveur applicatif
 resource "aws_instance" "mini_chat_ec2" {
-  ami                    = data.aws_ami.ubuntu.id  # AMI trouvée automatiquement
-  instance_type          = "t3.micro"                  # Gratuit (free tier)
-  key_name               = var.key_name                # Clé SSH
+  ami                    = data.aws_ami.ubuntu.id # AMI trouvée automatiquement
+  instance_type          = "t3.micro"             # Gratuit (free tier)
+  key_name               = var.key_name           # Clé SSH
   vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]
   subnet_id              = aws_subnet.mini_chat_public_subnet.id
 
-  user_data = file("${path.module}/user-data.sh")      # Script d'init
+  user_data = file("${path.module}/user-data.sh") # Script d'init
 
   tags = {
     Name = "mini-chat-server"
@@ -152,7 +152,7 @@ resource "aws_instance" "mini_chat_ec2" {
 # Subnet privé pour RDS (base de données non exposée sur Internet)
 resource "aws_subnet" "mini_chat_private_subnet" {
   vpc_id            = aws_vpc.mini_chat_vpc.id
-  cidr_block        = "10.0.2.0/24"  # 256 IPs privées
+  cidr_block        = "10.0.2.0/24" # 256 IPs privées
   availability_zone = "eu-west-3b"
 
   tags = {
@@ -181,7 +181,7 @@ resource "aws_security_group" "mini_chat_db_sg" {
     from_port   = 3306
     to_port     = 3306
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"]  # Seulement le VPC interne
+    cidr_blocks = ["10.0.0.0/16"] # Seulement le VPC interne
   }
 
   tags = {
@@ -191,21 +191,21 @@ resource "aws_security_group" "mini_chat_db_sg" {
 
 # Instance RDS MySQL - ma base de données managée
 resource "aws_db_instance" "mini_chat_db" {
-  identifier           = "mini-chat-db"
-  engine               = "mysql"
-  engine_version       = "8.0"
-  instance_class       = "db.t3.micro"      # Gratuit (free tier)
-  allocated_storage    = 20                    # 20 Go
-  storage_type         = "gp2"
-  
+  identifier        = "mini-chat-db"
+  engine            = "mysql"
+  engine_version    = "8.0"
+  instance_class    = "db.t3.micro" # Gratuit (free tier)
+  allocated_storage = 20            # 20 Go
+  storage_type      = "gp2"
+
   db_name  = "mini_chat"
   username = "root"
-  password = var.db_password                  # Variable sensible
+  password = var.db_password # Variable sensible
 
   vpc_security_group_ids = [aws_security_group.mini_chat_db_sg.id]
   db_subnet_group_name   = aws_db_subnet_group.mini_chat_db_subnet_group.name
 
-  skip_final_snapshot = true  # Pas de snapshot final (pour tests)
+  skip_final_snapshot = true # Pas de snapshot final (pour tests)
 
   tags = {
     Name = "mini-chat-database"

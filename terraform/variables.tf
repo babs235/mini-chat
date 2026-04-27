@@ -1,6 +1,6 @@
 variable "aws_region" {
   description = "Région AWS"
-  default     = "eu-west-3"  # Paris
+  default     = "eu-west-3" # Paris
 }
 
 variable "db_password" {

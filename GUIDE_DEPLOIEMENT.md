@@ -346,7 +346,204 @@ docker-compose down -v
 docker-compose up -d --build
 ```
 
-### 5.4 Backup de la Base de Données
+### 5.3 Erreurs CI/CD et Terraform
+
+#### Erreur 1: SignatureDoesNotMatch (AWS Credentials)
+
+**Symptôme:**
+```
+Error: validating provider credentials: retrieving caller identity from STS:
+api error SignatureDoesNotMatch: The request signature we calculated does not match
+```
+
+**Cause:** AWS Secret Access Key incorrecte dans les secrets GitHub
+
+**Solution:**
+1. Vérifier les secrets GitHub: `AWS_ACCESS_KEY_ID` et `AWS_SECRET_ACCESS_KEY`
+2. S'assurer qu'il n'y a pas d'espaces avant/après les clés
+3. Régénérer les clés AWS si nécessaire (IAM → Security credentials)
+
+---
+
+#### Erreur 2: DBSubnetGroupAlreadyExists
+
+**Symptôme:**
+```
+Error: creating RDS DB Subnet Group: DBSubnetGroupAlreadyExists:
+The DB subnet group 'mini-chat-db-subnet-group' already exists.
+```
+
+**Cause:** Le subnet group existe déjà sur AWS (créé manuellement ou par un déploiement précédent)
+
+**Solution:**
+1. Supprimer l'instance RDS d'abord (RDS → Databases → Delete)
+2. Puis supprimer le subnet group (RDS → Subnet groups → Delete)
+3. Relancer le pipeline
+
+**Important:** L'ordre est crucial - RDS d'abord, puis subnet group
+
+---
+
+#### Erreur 3: Subnets not in same VPC
+
+**Symptôme:**
+```
+Error: updating RDS DB Subnet Group: InvalidParameterValue:
+The new Subnets are not in the same Vpc as the existing subnet group
+```
+
+**Cause:** Conflit entre ressources existantes et nouvelle configuration Terraform
+
+**Solution:** Nettoyage complet AWS:
+1. Supprimer l'instance RDS
+2. Supprimer le DB Subnet Group
+3. Supprimer les autres ressources (EC2, VPC) si besoin
+4. Relancer le pipeline avec un state Terraform propre
+
+---
+
+#### Erreur 4: VpcLimitExceeded
+
+**Symptôme:**
+```
+Error: creating EC2 VPC: VpcLimitExceeded: The maximum number of VPCs has been reached.
+```
+
+**Cause:** Limite de 5 VPCs par région atteinte sur AWS
+
+**Solution:**
+1. Aller sur AWS Console → VPC → Your VPCs
+2. Identifier les VPCs inutilisés (sans instances actives)
+3. Supprimer les VPCs inutilisés
+4. Alternative: Demander une augmentation de limite (Service Quotas)
+
+---
+
+#### Erreur 5: terraform.tfvars manquant
+
+**Symptôme:**
+```
+Error: Failed to read variables file: Given variables file terraform.tfvars does not exist.
+```
+
+**Cause:** Le fichier `terraform.tfvars` est dans `.gitignore` et n'est pas envoyé sur GitHub
+
+**Solution CI/CD:**
+```yaml
+# Créer un fichier .env.example avec les variables par défaut
+# Dans le pipeline:
+- name: Test des conteneurs Docker
+  run: |
+    cd docker
+    cp .env.example .env  # Copier le fichier exemple
+    docker compose up --build backend db -d
+```
+
+---
+
+#### Erreur 6: Variables Terraform non définies
+
+**Symptôme:**
+```
+var.db_password
+  Mot de passe RDS MySQL
+# Terraform attend une valeur pour db_password
+```
+
+**Cause:** Les variables Terraform n'ont pas de valeur par défaut
+
+**Solution CI/CD:**
+```yaml
+env:
+  TF_VAR_db_password: ${{ secrets.db_password }}
+  TF_VAR_key_name: ${{ secrets.key_name }}
+```
+
+**Important:** Utiliser le préfixe `TF_VAR_` pour que Terraform reconnaisse les variables d'environnement
+
+---
+
+#### Erreur 7: Terraform fmt -check échoue
+
+**Symptôme:**
+```
+main.tf
+variables.tf
+Error: Terraform exited with code 3.
+```
+
+**Cause:** Les fichiers Terraform ne sont pas correctement formatés
+
+**Solution:**
+```bash
+cd terraform
+terraform fmt  # Formater automatiquement
+git add .
+git commit -m "Formatage Terraform"
+git push
+```
+
+---
+
+#### Erreur 8: Container MySQL échoue dans le CI/CD
+
+**Symptôme:**
+```
+dependency failed to start: container docker-db-1 exited (1)
+```
+
+**Cause:** Le fichier `.env` n'existe pas dans le CI/CD (il est dans `.gitignore`)
+
+**Solution:**
+1. Créer un fichier `docker/.env.example` avec les valeurs de test:
+   ```
+   MYSQL_ROOT_PASSWORD=mysecretpassword
+   JWT_SECRET=your_jwt_secret_key_here
+   ```
+2. Dans le CI/CD, copier le fichier:
+   ```yaml
+   - name: Test des conteneurs Docker
+     run: |
+       cd docker
+       cp .env.example .env
+       docker compose up --build backend db -d
+   ```
+
+---
+
+#### Erreur 9: Timeout du déploiement Grafana
+
+**Symptôme:** Le job CI/CD s'arrête pendant le démarrage des containers
+
+**Cause:** Grafana installe plusieurs plugins et prend beaucoup de temps
+
+**Solution CI/CD:**
+```yaml
+- name: Test des conteneurs Docker
+  run: |
+    cd docker
+    cp .env.example .env
+    docker compose up --build backend db -d  # Seulement backend et db, pas Grafana
+    sleep 20
+    docker ps
+    curl -f http://localhost:3000 || exit 1
+    docker compose down
+```
+
+**Astuce:** Ne pas lancer Grafana dans le CI/CD si non nécessaire pour les tests
+
+---
+
+### 5.4 Checklist CI/CD avant déploiement
+
+- [ ] Secrets GitHub configurés: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+- [ ] Variables Terraform dans secrets: `db_password`, `key_name`
+- [ ] Fichier `docker/.env.example` créé avec les variables de test
+- [ ] Fichiers Terraform formatés (`terraform fmt`)
+- [ ] Pas de ressources AWS conflictuelles (mêmes noms existants)
+- [ ] Limite de VPCs non atteinte (moins de 5 VPCs sur AWS)
+
+### 5.5 Backup de la Base de Données
 
 Pour effectuer un backup de la base de données MySQL :
 

@@ -11,7 +11,6 @@
 #   7. RDS MySQL (base de données)
 # ============================================================
 
-
 # ────────────────────────────────────────────────────────────
 # 1. VPC - Mon réseau virtuel privé sur AWS
 # ────────────────────────────────────────────────────────────
@@ -19,14 +18,13 @@
 # 10.0.0.0/16 = 65 536 adresses IP possibles
 resource "aws_vpc" "mini_chat_vpc" {
   cidr_block           = "10.0.0.0/16"
-  enable_dns_hostnames = true # Permet d'utiliser des noms de domaine internes
-  enable_dns_support   = true # Permet la résolution DNS dans le VPC
+  enable_dns_hostnames = true
+  enable_dns_support   = true
 
   tags = {
     Name = "mini-chat-vpc"
   }
 }
-
 
 # ────────────────────────────────────────────────────────────
 # 2. Subnets - Les étages de l'immeuble
@@ -40,8 +38,8 @@ resource "aws_vpc" "mini_chat_vpc" {
 resource "aws_subnet" "mini_chat_public_subnet" {
   vpc_id                  = aws_vpc.mini_chat_vpc.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = "eu-west-3a" # Data center Paris A
-  map_public_ip_on_launch = true         # Donne une IP publique automatiquement
+  availability_zone       = "eu-west-3a"
+  map_public_ip_on_launch = true
 
   tags = {
     Name = "mini-chat-public-subnet"

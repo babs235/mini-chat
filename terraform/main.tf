@@ -218,8 +218,22 @@ data "aws_ami" "ubuntu" {
 resource "aws_instance" "mini_chat_ec2" {
   ami           = data.aws_ami.ubuntu.id
   instance_type = "t3.small"
+  key_name     = "mini-key"
   subnet_id    = aws_subnet.mini_chat_public_subnet.id
   vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]
+
+  user_data = <<-EOF
+#!/bin/bash
+apt-get update
+apt-get install -y docker.io docker-compose-plugin awscli
+usermod -aG docker ubuntu
+systemctl enable docker && systemctl start docker
+cd /home/ubuntu
+git clone https://github.com/babs235/mini-chat.git
+cd mini-chat/docker
+cp .env.example .env
+docker compose up -d
+EOF
 
   tags = {
     Name = "mini-chat-server"

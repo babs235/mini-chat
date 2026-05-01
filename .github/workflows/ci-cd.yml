@@ -79,6 +79,17 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       
+      - name: nettoyer le state terraform (SNS conflict)
+        run: |
+          cd terraform
+          # Supprimer le state pour éviter les conflits SNS
+          rm -f .terraform.lock.hcl 2>/dev/null || true
+          # Forcer Terraform à recréer tout depuis zéro
+          terraform force-unlock LOCK_ID 2>/dev/null || true
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      
       - name: validation de fichier installer 
         run: |
           cd terraform

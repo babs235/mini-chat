@@ -194,47 +194,6 @@ resource "aws_security_group" "mini_chat_db_sg" {
 }
 
 
-# ────────────────────────────────────────────────────────────
-# 5. Rôle IAM pour SSM Session Manager
-# ────────────────────────────────────────────────────────────
-# Rappel :
-#   IAM Role = un "badge d'accès" que l'instance EC2 porte
-#   SSM = AWS Systems Manager = service pour gérer les serveurs à distance
-#   Avec SSM, tu te connectes SANS ouvrir le port SSH (22)
-#   → Fonctionne depuis n'importe quel WiFi (maison, école, etc.)
-
-# Rôle IAM que l'instance EC2 va "porter"
-resource "aws_iam_role" "mini_chat_ssm_role" {
-  name = "mini-chat-ssm-role"
-
-  # Politique d'approbation = "Qui peut utiliser ce rôle ?"
-  # Ici : seulement les instances EC2
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "ec2.amazonaws.com" # Seules les instances EC2 peuvent prendre ce rôle
-        }
-      }
-    ]
-  })
-}
-
-# Attacher la policy SSM au rôle
-# AmazonSSMManagedInstanceCore = permission d'utiliser Session Manager
-resource "aws_iam_role_policy_attachment" "mini_chat_ssm_policy" {
-  role       = aws_iam_role.mini_chat_ssm_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-}
-
-# Profil d'instance = le "porte-badge" qu'on attache à EC2
-resource "aws_iam_instance_profile" "mini_chat_ssm_profile" {
-  name = "mini-chat-ssm-profile"
-  role = aws_iam_role.mini_chat_ssm_role.name
-}
 
 
 # ────────────────────────────────────────────────────────────
@@ -268,7 +227,6 @@ resource "aws_instance" "mini_chat_ec2" {
   key_name               = var.key_name               # ✅ Nécessaire pour EC2 Instance Connect
   subnet_id              = aws_subnet.mini_chat_public_subnet.id               # Dans le subnet public
   vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]                # Pare-feu EC2
-  iam_instance_profile   = aws_iam_instance_profile.mini_chat_ssm_profile.name # Badge SSM
 
   user_data = file("${path.module}/user-data.sh") # Script de démarrage
 

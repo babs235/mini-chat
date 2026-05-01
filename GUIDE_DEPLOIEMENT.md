@@ -39,7 +39,40 @@ aws configure
 
 ## 2. INFRASTRUCTURE AWS (TERRAFORM)
 
-### 2.1 Déploiement Initial
+### 2.1 Architecture Sécurisée (Nouvelle Version 2026)
+
+L'infrastructure a été complètement reconçue avec les meilleures pratiques de sécurité :
+
+| Composant | Configuration | Pourquoi ? |
+|-----------|---------------|------------|
+| **VPC** | `10.0.0.0/16` avec 3 subnets | Réseau isolé et haute disponibilité |
+| **Subnet Public** | `10.0.1.0/24` (eu-west-3a) | Pour EC2 (application) |
+| **Subnets Privés** | `10.0.2.0/24` (eu-west-3a) + `10.0.3.0/24` (eu-west-3c) | Pour RDS (base de données) |
+| **Security Groups** | Ports 22, 9090, 3001 fermés | Sécurité maximale |
+| **SSM Session Manager** | Remplace SSH | Connexion sécurisée sans port ouvert |
+| **RDS Backup** | Automatique 7 jours | Protection des données |
+| **CloudWatch** | Alertes CPU/Disque/RDS | Monitoring proactif |
+
+### 2.2 Déploiement via CI/CD (Recommandé)
+
+```bash
+# 1. Mettre à jour les secrets GitHub
+# - AWS_ACCESS_KEY_ID: nouvelle clé
+# - AWS_SECRET_ACCESS_KEY: nouvelle clé secrète  
+# - db_password: "123456"
+# - key_name: "mini-chat-key"
+
+# 2. Commit et push
+git add .
+git commit -m "feat: infrastructure sécurisée complète"
+git push origin main
+
+# 3. GitHub Actions déploie automatiquement
+# - Tests → Build → Terraform deploy
+# - Durée: 5-10 minutes
+```
+
+### 2.3 Déploiement Manuel (Alternative)
 
 ```bash
 # 1. Se placer dans le dossier terraform
@@ -54,17 +87,32 @@ terraform plan
 # 4. Déployer (prend ~5 minutes)
 terraform apply -auto-approve
 
-# 5. Récupérer l'IP publique
-terraform output ec2_public_ip
-# Exemple: 13.38.35.35
+# 5. Récupérer l'ID de l'instance pour SSM
+terraform output ec2_instance_id
+# Exemple: i-0123456789abcdef0
 ```
 
-### 2.2 Sorties Terraform
+### 2.4 Sorties Terraform
 
 | Output | Description | Exemple |
 |--------|-------------|---------|
+| `ec2_instance_id` | ID instance EC2 (pour SSM) | i-0123456789abcdef0 |
 | `ec2_public_ip` | IP serveur EC2 | 13.38.35.35 |
 | `rds_endpoint` | Endpoint base de données | mini-chat-db.xxx.eu-west-3.rds.amazonaws.com |
+| `app_url` | URL complète application | http://13.38.35.35:3000 |
+
+### 2.5 Connexion Sécurisée avec SSM Session Manager
+
+```bash
+# Se connecter au serveur (depuis n'importe où)
+aws ssm start-session --target i-0123456789abcdef0
+
+# Accès à Prometheus via SSH tunnel
+aws ssm start-session --target i-0123456789abcdef0 \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["9090"],"localPortNumber":["9090"]}'
+# Puis ouvrir http://localhost:9090
+```
 
 ---
 
@@ -121,20 +169,48 @@ docker-compose logs -f backend
 
 ## 4. MONITORING & ALERTES
 
-### 4.1 Architecture de Monitoring
+### 4.1 Architecture CloudWatch (Nouvelle Version 2026)
 
 ```
 ┌─────────────────┐      ┌─────────────┐      ┌─────────────┐
-│  TON APP       │ ───▶ │  PROMETHEUS │ ───▶ │   GRAFANA  │
-│  (/metrics)    │      │  (récupère) │      │  (affiche)  │
+│  TON APP       │ ───▶ │CLOUDWATCH  │ ───▶ │    SNS      │
+│  (métriques)   │      │  (monitor)  │      │  (emails)   │
 └─────────────────┘      └─────────────┘      └─────────────┘
        ↑                        │                     │
        │                        │                     ▼
-  Code méttriques         Fichier YAML         Discord/Slack
-  dans l'app              d'alertes             Notifications
+  Logs applicatifs       Alertes auto        Email/SMS toi
+  + métriques système    CPU/Disque/RDS       (instantané)
 ```
 
-### 4.2 Métriques Disponibles
+**Pourquoi CloudWatch au lieu de Prometheus/Grafana ?**
+- ✅ **Sécurité** : Pas de ports à ouvrir (Prometheus/Grafana étaient publics)
+- ✅ **Intégré** : Nativement AWS, pas de maintenance
+- ✅ **Alertes email** : Directement dans ta boîte mail
+- ✅ **Free tier** : Inclus dans le plan gratuit AWS
+
+### 4.2 Alertes CloudWatch Configurées
+
+| Alerte | Se déclenche quand | Action |
+|--------|------------------|--------|
+| **CPU EC2 élevé** | CPU > 80% pendant 10 min | Email d'alerte |
+| **Disque EC2 plein** | Disque > 85% utilisé | Email d'alerte |
+| **CPU RDS élevé** | CPU BDD > 75% pendant 10 min | Email d'alerte |
+| **Logs applicatifs** | Tous les logs centralisés | Consultation CloudWatch |
+
+### 4.3 Configuration des Alertes Email
+
+**Après déploiement :**
+1. **Email de confirmation** AWS arrive dans ta boîte mail
+2. **Clique "Confirm subscription"** (vérifie les spams)
+3. **Alertes actives** pour toujours
+
+**Exemple d'email d'alerte :**
+```
+Sujet: ALARM: mini-chat-cpu-high in EU (Paris)
+Corps: AWS Notification - CPU > 80% pendant 10 minutes sur l'instance mini-chat-server
+```
+
+### 4.4 Métriques Applicatives (Prometheus toujours disponible)
 
 | Métrique | Description | Fichier source |
 |----------|-------------|----------------|
@@ -144,7 +220,16 @@ docker-compose logs -f backend
 | `process_cpu_user_seconds_total` | CPU utilisé par le processus | `collectDefaultMetrics()` |
 | `process_resident_memory_bytes` | RAM utilisée par le processus | `collectDefaultMetrics()` |
 
-### 4.3 Ajouter une Nouvelle Métrique
+**Accès aux métriques applicatives :**
+```bash
+# Via SSH tunnel SSM
+aws ssm start-session --target i-0123456789abcdef0 \
+  --document-name AWS-StartPortForwardingSession \
+  --parameters '{"portNumber":["9090"],"localPortNumber":["9090"]}'
+# Puis http://localhost:9090/metrics
+```
+
+### 4.5 Ajouter une Nouvelle Métrique
 
 **Étape 1 : Créer le compteur dans `metrics.js`**
 ```javascript
@@ -166,150 +251,49 @@ newMetric.inc(); // +1
 
 **Étape 3 : Redémarrer le backend**
 ```bash
-cd docker
+# Via SSM Session Manager
+aws ssm start-session --target i-0123456789abcdef0
+cd /home/ubuntu/mini-chat/docker
 docker-compose restart backend
 ```
 
-### 4.4 Configuration Grafana
+### 4.6 Backup Automatique AWS RDS
 
-#### Accès
-- **URL** : http://13.38.35.35:3001
-- **Login** : admin / admin
+**Plus besoin de script manuel !** AWS RDS Backup gère tout automatiquement :
 
-#### Ajouter Prometheus comme source de données
-1. Menu ☰ → **Configuration** → **Data sources**
-2. **Add data source** → **Prometheus**
-3. **URL** : `http://prometheus:9090`
-4. **Save & Test**
+| Caractéristique | Configuration |
+|----------------|---------------|
+| **Fréquence** | Tous les jours à 3h du matin |
+| **Rétention** | 7 jours de backups |
+| **Type** | Snapshot automatique |
+| **Restauration** | 1-click dans console AWS |
 
-#### Créer un Dashboard
-1. Menu ☰ → **Dashboards** → **New** → **New dashboard**
-2. **Add visualization**
-3. Sélectionner **Prometheus**
-4. Entrer la requête PromQL (ex: `active_users`)
-5. Choisir le type de panel (Stat, Gauge, Time series)
-6. **Back to dashboard**
-7. Répéter pour ajouter d'autres panels
-8. **Save dashboard**
+**Restauration manuelle si besoin :**
+1. Console AWS → RDS → Databases
+2. Sélectionner `mini-chat-db`
+3. Actions → Restore to point in time
 
-#### Requêtes PromQL Utiles
-| Ce que tu veux | Requête |
-|----------------|---------|
-| Requêtes totales | `http_requests_total` |
-| Users actifs | `active_users` |
-| Requêtes/sec | `rate(http_requests_total[5m])` |
-| Requêtes/min | `rate(http_requests_total[1m]) * 60` |
-| CPU % | `rate(process_cpu_user_seconds_total[5m]) * 100` |
-| RAM en MB | `process_resident_memory_bytes / 1048576` |
+### 4.7 Mise à jour sur AWS
 
-### 4.5 Configuration des Alertes
-
-#### Créer un Contact Point (Discord)
-1. Menu ☰ → **Alerting** → **Contact points**
-2. **Add contact point**
-3. **Name** : `Discord Mini-Chat`
-4. **Integration** : `Webhook`
-5. **URL** : [Webhook Discord]
-6. **Save**
-
-#### Personnaliser le message Discord
-Dans le contact point Discord :
-1. Cocher **"Custom message"**
-2. Coller ce template :
-```json
-{
-  "content": "**{{ .Labels.alertname }}**\n\n{{ .Annotations.summary }}\n\nValeur : {{ .Value }}"
-}
-```
-
-#### Créer une Notification Policy
-1. Menu ☰ → **Alerting** → **Notification policies**
-2. **New child policy**
-3. **Contact point** : `Discord Mini-Chat`
-4. **Save**
-
-#### Créer une Alert Rule
-1. Menu ☰ → **Alerting** → **Alert rules**
-2. **New alert rule**
-3. **Name** : Ex: `Trop de messages`
-4. **Metric** : Ex: `messages_created_total`
-5. **Alert condition** : `Is above 50`
-6. **Pending period** : `10s`
-7. **Folder** : `Mini-Chat`
-8. **Notifications** → **Contact point** : `Discord Mini-Chat`
-9. **Summary** : `📢 {{ $value }} messages créés !`
-10. **Save**
-
-### 4.6 Exemples d'Alertes
-
-| Alert Rule | Métrique | Condition | Quand ça se déclenche |
-|------------|----------|-----------|---------------------|
-| Backend Down | `up{job="backend"}` | Is below 1 | Le backend ne répond plus |
-| Trop de requêtes/sec | `rate(http_requests_total[1m])` | Is above 10 | Plus de 10 req/sec |
-| Pics d'utilisateurs | `active_users` | Is above 5 | Plus de 5 users connectés |
-| CPU élevé | `rate(process_cpu_user_seconds_total[5m]) * 100` | Is above 80 | CPU > 80% pendant 2 min |
-| RAM élevée | `process_resident_memory_bytes / 1048576` | Is above 500 | RAM > 500 MB |
-| Trop de messages | `messages_created_total` | Is above 50 | Plus de 50 messages créés |
-
-### 4.7 Fichiers de Configuration
-
-#### Prometheus : `docker/prometheus.yml`
-```yaml
-scrape_configs:
-  - job_name: "backend"
-    static_configs:
-      - targets: ["backend:3000"]
-```
-
-#### Alertes Prometheus : `docker/prometheus/alerts/minichat.yml`
-```yaml
-groups:
-  - name: minichat
-    rules:
-      - alert: MiniChatDown
-        expr: up{job="backend"} == 0
-        for: 1m
-        labels:
-          severity: critical
-        annotations:
-          summary: "Mini-Chat est DOWN !"
-```
-
-**Note** : Les alertes peuvent être gérées soit via fichiers YAML (Alertmanager), soit via l'interface Grafana (recommandé pour la simplicité).
-
-### 4.8 Mise à jour sur AWS
-
-Après avoir modifié le code de monitoring :
+Après avoir modifié le code :
 ```bash
 # 1. Commit et push
-git add backend/src/middleware/metrics.js backend/src/routes/messages.js
+git add backend/src/middleware/metrics.js
 git commit -m "feat: add new metric"
 git push
 
-# 2. Sur AWS
-ssh -i ~/.ssh/mini-chat-key.pem ubuntu@13.38.35.35
+# 2. GitHub Actions déploie automatiquement
+# Ou manuellement via SSM :
+aws ssm start-session --target $(terraform output -raw ec2_instance_id)
 cd /home/ubuntu/mini-chat
 git pull
 cd docker
 docker-compose restart backend
 
 # 3. Vérifier la métrique
-curl http://localhost:3000/metrics | grep messages_created_total
+# Via SSH tunnel vers Prometheus
+curl http://localhost:9090/metrics | grep messages_created_total
 ```
-
-### 4.9 Déploiement avec Backup Automatique
-
-Pour mettre à jour l'application avec un backup automatique avant le déploiement :
-
-```bash
-./scripts/deploy-with-backup.sh 13.38.35.35 ~/.ssh/mini-chat-key.pem
-```
-
-Ce script effectue automatiquement :
-1. Backup de la base de données MySQL
-2. Git pull pour récupérer les dernières modifications
-3. Redémarrage des containers Docker
-4. Vérification du statut des containers
 
 ---
 

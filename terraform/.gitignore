@@ -1,9 +1,26 @@
-# Terraform - Ne pas versionner les fichiers sensibles
+# ============================================================
+# .gitignore - Fichiers à NE PAS mettre sur GitHub
+# ============================================================
+# Ces fichiers contiennent des secrets ou du cache
+# Ils doivent rester sur ton PC uniquement
+# ============================================================
+
+# Le fichier avec les vraies valeurs (mot de passe, etc.)
 terraform.tfvars
+
+# Les fichiers de state (la liste de ce qui existe sur AWS)
 *.tfstate
 *.tfstate.*
+
+# Le cache de Terraform (téléchargements)
 .terraform/
 .terraform.lock.hcl
+
+# Les logs de crash
 crash.log
+
+# Les fichiers JSON de variables
 *.tfvars.json
-mini-chat-key(1).pem
+
+# La clé SSH privée (JAMAIS sur GitHub !)
+*.pem

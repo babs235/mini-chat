@@ -2,9 +2,9 @@ name: CI/CD Mini-Chat
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 jobs:
   # === JOB 1: TESTS ET VÉRIFICATION ===
@@ -92,7 +92,6 @@ jobs:
       - name : terraform apply
         run: |
           cd terraform
-          cp terraform.tfvars.example terraform.tfvars
           terraform apply -auto-approve
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}

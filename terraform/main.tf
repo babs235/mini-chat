@@ -222,7 +222,31 @@ resource "aws_instance" "mini_chat_ec2" {
   subnet_id              = aws_subnet.mini_chat_public_subnet.id
   vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]
 
-  user_data = file("${path.module}/user-data.sh")
+  user_data = <<-EOF
+#!/bin/bash
+# Mettre à jour les paquets
+apt-get update
+
+# Installer Docker et Docker Compose
+apt-get install -y docker.io docker-compose-plugin
+
+# Ajouter l'utilisateur ubuntu au groupe docker
+usermod -aG docker ubuntu
+
+# Activer et démarrer Docker
+systemctl enable docker
+systemctl start docker
+
+# Installer AWS CLI
+apt-get install -y awscli
+
+# Cloner le repo et lancer l'application
+cd /home/ubuntu
+git clone https://github.com/babs235/mini-chat.git
+cd mini-chat/docker
+cp .env.example .env
+docker compose up -d
+EOF
 
   tags = {
     Name = "mini-chat-server"

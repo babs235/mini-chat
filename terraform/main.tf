@@ -265,7 +265,7 @@ data "aws_ami" "ubuntu" {
 resource "aws_instance" "mini_chat_ec2" {
   ami           = data.aws_ami.ubuntu.id # Image Ubuntu trouvée ci-dessus
   instance_type = "t3.small"             # 2 vCPU, 2 Go RAM
-  # key_name               = var.key_name               # ❌ Inutile avec SSM Session Manager
+  key_name               = var.key_name               # ✅ Nécessaire pour EC2 Instance Connect
   subnet_id              = aws_subnet.mini_chat_public_subnet.id               # Dans le subnet public
   vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]                # Pare-feu EC2
   iam_instance_profile   = aws_iam_instance_profile.mini_chat_ssm_profile.name # Badge SSM

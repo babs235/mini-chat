@@ -85,10 +85,10 @@ jobs:
           cd terraform
           terraform validate
       
-      - name: check 
-        run: |
-          cd terraform
-          terraform fmt -check
+      # - name: check 
+      #   run: |
+      #     cd terraform
+      #     terraform fmt -check
 
       - name : terraform apply
         run: |

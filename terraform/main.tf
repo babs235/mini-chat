@@ -325,17 +325,15 @@ resource "aws_db_instance" "mini_chat_db" {
   # Rappel : Plus besoin du script manuel backup-mysql.sh
   # AWS fait tout automatiquement, tous les jours, sans intervention
   
-  backup_retention_period = 7  # Garde 7 jours de backups automatiques
-  backup_window          = "03:00-04:00"  # Tous les jours de 3h à 4h (heure de Paris)
-  backup_target          = "db"  # Backup de la base de données (pas du storage)
-  
-  # Optionnel : Activer les snapshots automatiques
+  # Configuration du backup automatique
+  backup_retention_period = 7       # Garder les backups 7 jours
+  backup_window          = "03:00-04:00"  # Backup à 3h du matin
+  skip_final_snapshot     = false  # Crée un snapshot final à la suppression
   snapshot_identifier = null  # Pas de snapshot manuel au démarrage
   
   # Optionnel : Monitoring des backups
   monitoring_interval = 0  # Pas de monitoring détaillé (free tier)
   
-  skip_final_snapshot = false  # Crée un snapshot final à la suppression
   
   tags = {
     Name = "mini-chat-database"

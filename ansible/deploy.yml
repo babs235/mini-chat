@@ -39,9 +39,11 @@
 
     - name: nettoyer docker pour liberer de l'espace
       shell: |
-        docker system prune -af
-        docker volume prune -f
+        docker system prune -af --volumes
         docker image prune -af
+        docker builder prune -af
+        apt-get clean
+        rm -rf /tmp/*
 
     - name: lancer docker-compose
       shell: |

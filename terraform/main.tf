@@ -93,7 +93,7 @@ resource "aws_route_table" "mini_chat_public_rt" {
   vpc_id = aws_vpc.mini_chat_vpc.id
 
   route {
-    cidr_block = "0.0.0.0/0"                          # Tout le trafic Internet
+    cidr_block = "0.0.0.0/0"                           # Tout le trafic Internet
     gateway_id = aws_internet_gateway.mini_chat_igw.id # → passe par l'Internet Gateway
   }
 
@@ -156,7 +156,7 @@ resource "aws_security_group" "mini_chat_sg" {
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = "-1"        # -1 = tous les protocoles
+    protocol    = "-1"          # -1 = tous les protocoles
     cidr_blocks = ["0.0.0.0/0"] # Tout le trafic sortant autorisé
   }
 
@@ -263,11 +263,11 @@ data "aws_ami" "ubuntu" {
 
 # L'instance EC2
 resource "aws_instance" "mini_chat_ec2" {
-  ami                    = data.aws_ami.ubuntu.id     # Image Ubuntu trouvée ci-dessus
-  instance_type          = "t3.small"                  # 2 vCPU, 2 Go RAM
+  ami           = data.aws_ami.ubuntu.id # Image Ubuntu trouvée ci-dessus
+  instance_type = "t3.small"             # 2 vCPU, 2 Go RAM
   # key_name               = var.key_name               # ❌ Inutile avec SSM Session Manager
-  subnet_id              = aws_subnet.mini_chat_public_subnet.id # Dans le subnet public
-  vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]  # Pare-feu EC2
+  subnet_id              = aws_subnet.mini_chat_public_subnet.id               # Dans le subnet public
+  vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]                # Pare-feu EC2
   iam_instance_profile   = aws_iam_instance_profile.mini_chat_ssm_profile.name # Badge SSM
 
   user_data = file("${path.module}/user-data.sh") # Script de démarrage
@@ -290,7 +290,7 @@ resource "aws_instance" "mini_chat_ec2" {
 # ⚠️ CORRECTION DU PROF : 2 subnets PRIVÉS dans 2 AZ différentes
 # (Avant : 1 public + 1 privé → MAUVAIS car la BDD était exposée)
 resource "aws_db_subnet_group" "mini_chat_db_subnet_group" {
-  name       = "mini-chat-db-subnet-group"
+  name = "mini-chat-db-subnet-group"
   subnet_ids = [
     aws_subnet.mini_chat_private_subnet_1.id, # Privé en eu-west-3a
     aws_subnet.mini_chat_private_subnet_2.id, # Privé en eu-west-3c
@@ -322,17 +322,17 @@ resource "aws_db_instance" "mini_chat_db" {
   # ──────────────────────────────────────────────────────────────────
   # Rappel : Plus besoin du script manuel backup-mysql.sh
   # AWS fait tout automatiquement, tous les jours, sans intervention
-  
+
   # Configuration du backup automatique
-  backup_retention_period = 7       # Garder les backups 7 jours
-  backup_window          = "03:00-04:00"  # Backup à 3h du matin
-  skip_final_snapshot     = false  # Crée un snapshot final à la suppression
-  snapshot_identifier = null  # Pas de snapshot manuel au démarrage
-  
+  backup_retention_period = 7             # Garder les backups 7 jours
+  backup_window           = "03:00-04:00" # Backup à 3h du matin
+  skip_final_snapshot     = false         # Crée un snapshot final à la suppression
+  snapshot_identifier     = null          # Pas de snapshot manuel au démarrage
+
   # Optionnel : Monitoring des backups
-  monitoring_interval = 0  # Pas de monitoring détaillé (free tier)
-  
-  
+  monitoring_interval = 0 # Pas de monitoring détaillé (free tier)
+
+
   tags = {
     Name = "mini-chat-database"
   }
@@ -351,7 +351,7 @@ resource "aws_db_instance" "mini_chat_db" {
 # SNS Topic - pour recevoir les alertes par email
 resource "aws_sns_topic" "mini_chat_alerts" {
   name = "mini-chat-alerts"
-  
+
   tags = {
     Name = "mini-chat-alerts"
   }
@@ -361,19 +361,19 @@ resource "aws_sns_topic" "mini_chat_alerts" {
 resource "aws_cloudwatch_metric_alarm" "cpu_high" {
   alarm_name          = "mini-chat-cpu-high"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"          # 2 périodes consécutives
+  evaluation_periods  = "2" # 2 périodes consécutives
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
-  period              = "300"       # 5 minutes
+  period              = "300" # 5 minutes
   statistic           = "Average"
-  threshold           = "80"        # 80% CPU
+  threshold           = "80" # 80% CPU
   alarm_description   = "CPU > 80% pendant 10 minutes"
   alarm_actions       = [aws_sns_topic.mini_chat_alerts.arn]
-  
+
   dimensions = {
     InstanceId = aws_instance.mini_chat_ec2.id
   }
-  
+
   tags = {
     Name = "mini-chat-cpu-alarm"
   }
@@ -391,11 +391,11 @@ resource "aws_cloudwatch_metric_alarm" "disk_high" {
   threshold           = "85"
   alarm_description   = "Disque > 85% utilisé"
   alarm_actions       = [aws_sns_topic.mini_chat_alerts.arn]
-  
+
   dimensions = {
     InstanceId = aws_instance.mini_chat_ec2.id
   }
-  
+
   tags = {
     Name = "mini-chat-disk-alarm"
   }
@@ -413,11 +413,11 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
   threshold           = "75"
   alarm_description   = "RDS CPU > 75% pendant 10 minutes"
   alarm_actions       = [aws_sns_topic.mini_chat_alerts.arn]
-  
+
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.mini_chat_db.id
   }
-  
+
   tags = {
     Name = "mini-chat-rds-cpu-alarm"
   }
@@ -426,8 +426,8 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
 # Log Group pour les logs de l'application
 resource "aws_cloudwatch_log_group" "mini_chat_logs" {
   name              = "/aws/ec2/mini-chat"
-  retention_in_days = 14  # Garde les logs 14 jours
-  
+  retention_in_days = 14 # Garde les logs 14 jours
+
   tags = {
     Name = "mini-chat-logs"
   }

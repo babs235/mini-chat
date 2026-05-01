@@ -117,7 +117,7 @@ jobs:
 
       - name: deploiement avec ansible
         run: |
-          cd ansible
+          cd ./ansible
           ansible-playbook deploy.yml
 
         

@@ -323,10 +323,10 @@ resource "aws_db_instance" "mini_chat_db" {
   # Rappel : Plus besoin du script manuel backup-mysql.sh
   # AWS fait tout automatiquement, tous les jours, sans intervention
 
-  # Configuration du backup automatique
-  backup_retention_period = 7             # Garder les backups 7 jours
+  # Configuration du backup automatique (FREE TIER)
+  backup_retention_period = 1             # Free tier = 1 jour maximum
   backup_window           = "03:00-04:00" # Backup à 3h du matin
-  skip_final_snapshot     = false         # Crée un snapshot final à la suppression
+  skip_final_snapshot     = true          # Free tier = pas de snapshot final
   snapshot_identifier     = null          # Pas de snapshot manuel au démarrage
 
   # Optionnel : Monitoring des backups
@@ -349,78 +349,78 @@ resource "aws_db_instance" "mini_chat_db" {
 #   SNS = Service notification (envoie les alertes)
 
 # SNS Topic - pour recevoir les alertes par email
-resource "aws_sns_topic" "mini_chat_alerts" {
-  name = "mini-chat-alerts"
-}
+# resource "aws_sns_topic" "mini_chat_alerts" {
+#   name = "mini-chat-alerts"
+# }
 
-# Alerte CPU élevé sur EC2
-resource "aws_cloudwatch_metric_alarm" "cpu_high" {
-  alarm_name          = "mini-chat-cpu-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2" # 2 périodes consécutives
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/EC2"
-  period              = "300" # 5 minutes
-  statistic           = "Average"
-  threshold           = "80" # 80% CPU
-  alarm_description   = "CPU > 80% pendant 10 minutes"
-  alarm_actions       = [aws_sns_topic.mini_chat_alerts.arn]
+# Alerte CPU élevé sur EC2 (sans SNS pour free tier)
+# resource "aws_cloudwatch_metric_alarm" "cpu_high" {
+#   alarm_name          = "mini-chat-cpu-high"
+#   comparison_operator = "GreaterThanThreshold"
+#   evaluation_periods  = "2" # 2 périodes consécutives
+#   metric_name         = "CPUUtilization"
+#   namespace           = "AWS/EC2"
+#   period              = "300" # 5 minutes
+#   statistic           = "Average"
+#   threshold           = "80" # 80% CPU
+#   alarm_description   = "CPU > 80% pendant 10 minutes"
+#   alarm_actions       = [aws_sns_topic.mini_chat_alerts.arn]
+#   
+#   dimensions = {
+#     InstanceId = aws_instance.mini_chat_ec2.id
+#   }
+#   
+#   tags = {
+#     Name = "mini-chat-cpu-alarm"
+#   }
+# }
 
-  dimensions = {
-    InstanceId = aws_instance.mini_chat_ec2.id
-  }
+# Alerte disque presque plein sur EC2 (sans SNS pour free tier)
+# resource "aws_cloudwatch_metric_alarm" "disk_high" {
+#   alarm_name          = "mini-chat-disk-high"
+#   comparison_operator = "GreaterThanThreshold"
+#   evaluation_periods  = "1"
+#   metric_name         = "disk_used_percent"
+#   namespace           = "CWAgent"
+#   period              = "300"
+#   statistic           = "Average"
+#   threshold           = "85"
+#   alarm_description   = "Disque > 85% utilisé"
+#   alarm_actions       = [aws_sns_topic.mini_chat_alerts.arn]
 
-  tags = {
-    Name = "mini-chat-cpu-alarm"
-  }
-}
+#   dimensions = {
+#     InstanceId = aws_instance.mini_chat_ec2.id
+#   }
 
-# Alerte disque presque plein sur EC2
-resource "aws_cloudwatch_metric_alarm" "disk_high" {
-  alarm_name          = "mini-chat-disk-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "1"
-  metric_name         = "disk_used_percent"
-  namespace           = "CWAgent"
-  period              = "300"
-  statistic           = "Average"
-  threshold           = "85"
-  alarm_description   = "Disque > 85% utilisé"
-  alarm_actions       = [aws_sns_topic.mini_chat_alerts.arn]
+#   tags = {
+#     Name = "mini-chat-disk-alarm"
+#   }
+# }
 
-  dimensions = {
-    InstanceId = aws_instance.mini_chat_ec2.id
-  }
+# Alarme RDS CPU élevé (sans SNS pour free tier)
+# resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
+#   alarm_name          = "mini-chat-rds-cpu-high"
+#   comparison_operator = "GreaterThanThreshold"
+#   evaluation_periods  = "2"
+#   metric_name         = "CPUUtilization"
+#   namespace           = "AWS/RDS"
+#   period              = "300"
+#   statistic           = "Average"
+#   threshold           = "75"
+#   alarm_description   = "RDS CPU > 75% pendant 10 minutes"
+#   alarm_actions       = [aws_sns_topic.mini_chat_alerts.arn]
 
-  tags = {
-    Name = "mini-chat-disk-alarm"
-  }
-}
+#   dimensions = {
+#     DBInstanceIdentifier = aws_db_instance.mini_chat_db.id
+#   }
 
-# Alarme RDS CPU élevé
-resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
-  alarm_name          = "mini-chat-rds-cpu-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = "2"
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/RDS"
-  period              = "300"
-  statistic           = "Average"
-  threshold           = "75"
-  alarm_description   = "RDS CPU > 75% pendant 10 minutes"
-  alarm_actions       = [aws_sns_topic.mini_chat_alerts.arn]
-
-  dimensions = {
-    DBInstanceIdentifier = aws_db_instance.mini_chat_db.id
-  }
-
-  tags = {
-    Name = "mini-chat-rds-cpu-alarm"
-  }
-}
+#   tags = {
+#     Name = "mini-chat-rds-cpu-alarm"
+#   }
+# }
 
 # Log Group pour les logs de l'application
-resource "aws_cloudwatch_log_group" "mini_chat_logs" {
-  name              = "/aws/ec2/mini-chat"
-  retention_in_days = 14 # Garde les logs 14 jours
-}
+# resource "aws_cloudwatch_log_group" "mini_chat_logs" {
+#   name              = "/aws/ec2/mini-chat"
+#   retention_in_days = 14 # Garde les logs 14 jours
+# }

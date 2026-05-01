@@ -40,11 +40,11 @@
     - name: lancer docker-compose
       shell: |
         cd /home/ubuntu/mini-chat/docker
-        docker compose down
-        docker compose up -d --build
+        docker-compose down
+        docker-compose up -d --build
 
     - name: verifier les conteneurs
-      shell: docker ps
+      shell: docker-compose ps
       register: docker_status
     
     - name: afficher les conteneurs

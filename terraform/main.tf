@@ -226,29 +226,35 @@ data "aws_ami" "ubuntu" {
 resource "aws_instance" "mini_chat_ec2" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = "t3.small"
-  key_name               = "mini-chat-key"
+  key_name               = var.key_name
   subnet_id              = aws_subnet.mini_chat_public_subnet.id
   vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]
 
   user_data = <<-EOF
 #!/bin/bash
-apt-get update
-apt-get install -y docker.io docker-compose-plugin awscli
-usermod -aG docker ubuntu
-systemctl enable docker && systemctl start docker
-cd /home/ubuntu
-git clone https://github.com/babs235/mini-chat.git
-cd mini-chat/docker
-cp .env.example .env
-docker compose up -d
+apt-get update -y
+apt-get install -y docker.io awscli
+
+systemctl enable docker
+systemctl start docker
+
+# Login ECR
+aws ecr get-login-password --region eu-west-3 \
+  | docker login --username AWS --password-stdin 137327915869.dkr.ecr.eu-west-3.amazonaws.com
+
+# Pull image depuis ECR (tag du pipeline)
+docker pull 137327915869.dkr.ecr.eu-west-3.amazonaws.com/mini-chat-backend:${var.image_tag}
+
+# Lancer le container
+docker run -d -p 3000:3000 \
+  --name mini-chat \
+  137327915869.dkr.ecr.eu-west-3.amazonaws.com/mini-chat-backend:${var.image_tag}
 EOF
 
   tags = {
     Name = "mini-chat-server"
   }
 }
-
-
 # ────────────────────────────────────────────────────────────
 # 7. RDS MySQL - La base de données managée
 # ────────────────────────────────────────────────────────────

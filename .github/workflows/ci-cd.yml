@@ -117,8 +117,9 @@ jobs:
 
       - name: deploiement avec ansible
         run: |
-          cd /mini-chat/ansible
-          ansible-playbook deploy.yml
+          pwd                    # Vérifie où tu es
+          ls -la                  # Vérifie les fichiers
+          ansible-playbook ansible/deploy.yml
 
-        
+              
         

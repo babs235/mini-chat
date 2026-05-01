@@ -169,7 +169,7 @@ resource "aws_security_group" "mini_chat_sg" {
 # ⚠️ SEULEMENT le VPC interne peut se connecter → PAS Internet
 resource "aws_security_group" "mini_chat_db_sg" {
   name        = "mini-chat-db-sg"
-  description = "Security group pour RDS MySQL - accès uniquement depuis le VPC"
+  description = "Security group for RDS MySQL - VPC access only"
   vpc_id      = aws_vpc.mini_chat_vpc.id
 
   # MySQL - port 3306, uniquement depuis le VPC interne
@@ -351,10 +351,6 @@ resource "aws_db_instance" "mini_chat_db" {
 # SNS Topic - pour recevoir les alertes par email
 resource "aws_sns_topic" "mini_chat_alerts" {
   name = "mini-chat-alerts"
-
-  tags = {
-    Name = "mini-chat-alerts"
-  }
 }
 
 # Alerte CPU élevé sur EC2
@@ -427,8 +423,4 @@ resource "aws_cloudwatch_metric_alarm" "rds_cpu_high" {
 resource "aws_cloudwatch_log_group" "mini_chat_logs" {
   name              = "/aws/ec2/mini-chat"
   retention_in_days = 14 # Garde les logs 14 jours
-
-  tags = {
-    Name = "mini-chat-logs"
-  }
 }

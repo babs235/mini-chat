@@ -6,9 +6,8 @@
 #   2. Subnets (public + 2 privés)
 #   3. Internet Gateway + Route Table
 #   4. Security Groups (pare-feu)
-#   5. Rôle IAM pour SSM (connexion sans SSH)
-#   6. Instance EC2 (serveur)
-#   7. RDS MySQL (base de données)
+#   5. Instance EC2 (serveur)
+#   6. RDS MySQL (base de données)
 # ============================================================
 
 # ────────────────────────────────────────────────────────────
@@ -124,16 +123,12 @@ resource "aws_security_group" "mini_chat_sg" {
   description = "Security group pour le serveur EC2 Mini-Chat"
   vpc_id      = aws_vpc.mini_chat_vpc.id
 
-  # ❌ PAS de port 22 (SSH) → On utilise SSM Session Manager à la place
-  # ❌ PAS de port 9090 (Prometheus) → Accessible uniquement via SSH tunnel
-  # ❌ PAS de port 3001 (Grafana) → Accessible uniquement via SSH tunnel
-
   # Application - port 3000 (backend Node.js)
   ingress {
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # Accessible depuis Internet (c'est l'application)
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   # HTTP - port 80
@@ -152,12 +147,12 @@ resource "aws_security_group" "mini_chat_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Sortie vers Internet (pour télécharger Docker images, npm install, etc.)
+  # Sortie vers Internet
   egress {
     from_port   = 0
     to_port     = 0
-    protocol    = "-1"          # -1 = tous les protocoles
-    cidr_blocks = ["0.0.0.0/0"] # Tout le trafic sortant autorisé
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   tags = {
@@ -166,7 +161,6 @@ resource "aws_security_group" "mini_chat_sg" {
 }
 
 # Security Group pour RDS (la base de données)
-# ⚠️ SEULEMENT le VPC interne peut se connecter → PAS Internet
 resource "aws_security_group" "mini_chat_db_sg" {
   name        = "mini-chat-db-sg"
   description = "Security group for RDS MySQL - VPC access only"
@@ -177,10 +171,10 @@ resource "aws_security_group" "mini_chat_db_sg" {
     from_port   = 3306
     to_port     = 3306
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/16"] # Seulement les IPs du VPC (pas Internet !)
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
-  # Sortie (RDS a besoin de se connecter à AWS pour les mises à jour)
+  # Sortie vers Internet
   egress {
     from_port   = 0
     to_port     = 0
@@ -222,13 +216,13 @@ data "aws_ami" "ubuntu" {
 
 # L'instance EC2
 resource "aws_instance" "mini_chat_ec2" {
-  ami           = data.aws_ami.ubuntu.id # Image Ubuntu trouvée ci-dessus
-  instance_type = "t3.small"             # 2 vCPU, 2 Go RAM
-  key_name               = var.key_name               # ✅ Nécessaire pour EC2 Instance Connect
-  subnet_id              = aws_subnet.mini_chat_public_subnet.id               # Dans le subnet public
-  vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]                # Pare-feu EC2
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.small"
+  key_name     = var.key_name
+  subnet_id    = aws_subnet.mini_chat_public_subnet.id
+  vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]
 
-  user_data = file("${path.module}/user-data.sh") # Script de démarrage
+  user_data = file("${path.module}/user-data.sh")
 
   tags = {
     Name = "mini-chat-server"
@@ -239,19 +233,13 @@ resource "aws_instance" "mini_chat_ec2" {
 # ────────────────────────────────────────────────────────────
 # 7. RDS MySQL - La base de données managée
 # ────────────────────────────────────────────────────────────
-# Rappel :
-#   RDS = base de données gérée par AWS (sauvegardes auto, mises à jour auto)
-#   db.t3.micro = instance gratuite (free tier)
-#   ⚠️ La BDD est dans 2 subnets PRIVÉS dans 2 AZ différentes (haute dispo)
 
-# RDS Subnet Group - groupe de subnets pour la base de données
-# ⚠️ CORRECTION DU PROF : 2 subnets PRIVÉS dans 2 AZ différentes
-# (Avant : 1 public + 1 privé → MAUVAIS car la BDD était exposée)
+# RDS Subnet Group
 resource "aws_db_subnet_group" "mini_chat_db_subnet_group" {
   name = "mini-chat-db-subnet-group"
   subnet_ids = [
-    aws_subnet.mini_chat_private_subnet_1.id, # Privé en eu-west-3a
-    aws_subnet.mini_chat_private_subnet_2.id, # Privé en eu-west-3c
+    aws_subnet.mini_chat_private_subnet_1.id,
+    aws_subnet.mini_chat_private_subnet_2.id,
   ]
 
   tags = {
@@ -264,32 +252,24 @@ resource "aws_db_instance" "mini_chat_db" {
   identifier        = "mini-chat-db"
   engine            = "mysql"
   engine_version    = "8.0"
-  instance_class    = "db.t3.micro" # Free tier
-  allocated_storage = 20            # 20 Go
+  instance_class    = "db.t3.micro"
+  allocated_storage = 20
   storage_type      = "gp2"
 
   db_name  = "mini_chat"
   username = "root"
-  password = var.db_password # Variable sensible (dans terraform.tfvars)
+  password = var.db_password
 
-  vpc_security_group_ids = [aws_security_group.mini_chat_db_sg.id] # Pare-feu RDS
+  vpc_security_group_ids = [aws_security_group.mini_chat_db_sg.id]
   db_subnet_group_name   = aws_db_subnet_group.mini_chat_db_subnet_group.name
 
-  # ──────────────────────────────────────────────────────────────────
-  # BACKUP AUTOMATIQUE AWS RDS
-  # ──────────────────────────────────────────────────────────────────
-  # Rappel : Plus besoin du script manuel backup-mysql.sh
-  # AWS fait tout automatiquement, tous les jours, sans intervention
-
   # Configuration du backup automatique (FREE TIER)
-  backup_retention_period = 1             # Free tier = 1 jour maximum
-  backup_window           = "03:00-04:00" # Backup à 3h du matin
-  skip_final_snapshot     = true          # Free tier = pas de snapshot final
-  snapshot_identifier     = null          # Pas de snapshot manuel au démarrage
+  backup_retention_period = 1
+  backup_window           = "03:00-04:00"
+  skip_final_snapshot     = true
+  snapshot_identifier     = null
 
-  # Optionnel : Monitoring des backups
-  monitoring_interval = 0 # Pas de monitoring détaillé (free tier)
-
+  monitoring_interval = 0
 
   tags = {
     Name = "mini-chat-database"

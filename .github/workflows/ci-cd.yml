@@ -7,35 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  # === JOB 1: BUILD AND PUSH BACKEND IMAGE ===
-  build-and-push:
-    name: Build and Push Backend Image
-    runs-on: ubuntu-latest
-    steps:
-      - name: Récupération du code
-        uses: actions/checkout@v4
-
-      - name: Configuration AWS CLI
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-3
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and push backend image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: mini-chat-backend
-          IMAGE_TAG: latest
-        run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f backend/dockerfile.backend ./backend
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-
-  # === JOB 2: TESTS ET VÉRIFICATION ===
+  # === JOB 1: TESTS ET VÉRIFICATION ===
   tests:
     name: Tests et Lint
     runs-on: ubuntu-latest
@@ -86,10 +58,42 @@ jobs:
           docker compose down
 
 
+  # === JOB 3: BUILD AND PUSH BACKEND IMAGE ===
+  build-and-push:
+    name: Build and Push Backend Image
+    runs-on: ubuntu-latest
+    needs: [tests, build]
+    steps:
+      - name: Récupération du code
+        uses: actions/checkout@v4
+
+      - name: Configuration AWS CLI
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: mini-chat-backend
+          IMAGE_TAG: latest
+        run: |
+          docker build -t mini-chat-backend:latest -f backend/dockerfile.backend ./backend
+          docker tag mini-chat-backend:latest $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+
+  # === JOB 4: DÉPLOIEMENT TERRAFORM ===
   deploy:
     name: validation et deploiement par terraform
     runs-on: ubuntu-latest
-    needs: [tests, build-and-push]
+    needs: [tests, build, build-and-push]
     steps: 
       - name: recuperation du code
         uses: actions/checkout@v4

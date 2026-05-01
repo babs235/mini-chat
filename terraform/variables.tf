@@ -23,8 +23,13 @@ variable "db_password" {
 
 # Nom de la clé SSH (créée sur AWS Console)
 variable "key_name" {
-  description = "Nom de la clé SSH EC2"
+  description = "Nom de la clé SSH EC2 (max 255 caractères)"
   type        = string
+  
+  validation {
+    condition     = length(var.key_name) <= 255
+    error_message = "Le nom de la clé SSH ne doit pas dépasser 255 caractères."
+  }
 }
 
 # IP publique de l'admin (pour restreindre l'accès SSH)

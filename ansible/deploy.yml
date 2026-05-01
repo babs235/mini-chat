@@ -13,7 +13,7 @@
       apt:
         name:
           - docker.io
-          - docker-compose-plugin
+          - docker-compose
           - git
           - awscli
         state: present

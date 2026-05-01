@@ -147,6 +147,14 @@ resource "aws_security_group" "mini_chat_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # SSH - port 22 (pour EC2 Instance Connect et SSH)
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   # Sortie vers Internet
   egress {
     from_port   = 0

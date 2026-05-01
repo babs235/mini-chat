@@ -119,7 +119,7 @@ jobs:
         run: |
           pwd                    # Vérifie où tu es
           ls -la                  # Vérifie les fichiers
-          ansible-playbook ansible/deploy.yml
+          ansible-playbook -i ansible/inventory.ini ansible/deploy.yml
 
               
         

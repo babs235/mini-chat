@@ -216,13 +216,11 @@ data "aws_ami" "ubuntu" {
 
 # L'instance EC2
 resource "aws_instance" "mini_chat_ec2" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = "t3.small"
-  key_name               = var.key_name
-  subnet_id              = aws_subnet.mini_chat_public_subnet.id
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.small"
+  subnet_id    = aws_subnet.mini_chat_public_subnet.id
   vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]
 
-  
   tags = {
     Name = "mini-chat-server"
   }

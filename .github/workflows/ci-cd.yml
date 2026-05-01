@@ -90,6 +90,14 @@ jobs:
       #     cd terraform
       #     terraform fmt -check
 
+      - name: taint EC2 instance for recreation
+        run: |
+          cd terraform
+          terraform taint aws_instance.mini_chat_ec2 || echo "Instance not tainted - will create new"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
       - name : terraform apply
         run: |
           cd terraform

@@ -222,8 +222,7 @@ resource "aws_instance" "mini_chat_ec2" {
   subnet_id              = aws_subnet.mini_chat_public_subnet.id
   vpc_security_group_ids = [aws_security_group.mini_chat_sg.id]
 
-  user_data = templatefile("${path.module}/user-data.sh", {})
-
+  
   tags = {
     Name = "mini-chat-server"
   }

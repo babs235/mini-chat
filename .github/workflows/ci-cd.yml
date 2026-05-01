@@ -112,8 +112,8 @@ jobs:
 
       - name: configuration ssh
         run: |
-          echo "${{ secrets.key_name }}" > ~/.ssh/mini-chat-key
-          chmod 600 ~/.ssh/mini-chat-key
+          echo "${{ secrets.key_name }}" > ~/.ssh/mini-chat-key.pem
+          chmod 600 ~/.ssh/mini-chat-key.pem
 
       - name: deploiement avec ansible
         run: |

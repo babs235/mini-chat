@@ -41,7 +41,3 @@ moved {
   to   = aws_security_group.db_sg
 }
 
-moved {
-  from = aws_db_subnet_group.mini_chat_db_subnet_group
-  to   = aws_db_subnet_group.mini_chat
-}

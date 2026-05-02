@@ -121,7 +121,7 @@ resource "aws_security_group" "ecs_sg" {
 # La base de données n'accepte MySQL que depuis les containers ECS
 resource "aws_security_group" "db_sg" {
   name        = "mini-chat-db-sg"
-  description = "RDS: MySQL entrant depuis ECS uniquement"
+  description = "Security group for RDS MySQL - VPC access only"
   vpc_id      = aws_vpc.mini_chat_vpc.id
 
   ingress {

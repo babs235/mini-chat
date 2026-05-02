@@ -36,8 +36,8 @@ resource "aws_iam_role_policy" "ecs_ssm_policy" {
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Effect   = "Allow"
-      Action   = ["ssm:GetParameters"]
+      Effect = "Allow"
+      Action = ["ssm:GetParameters"]
       Resource = [
         aws_ssm_parameter.db_password.arn,
         aws_ssm_parameter.jwt_secret.arn
@@ -77,8 +77,8 @@ resource "aws_ecs_task_definition" "backend" {
   family                   = "mini-chat-backend"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "256"  # 0.25 vCPU
-  memory                   = "512"  # 512 MB RAM
+  cpu                      = "256" # 0.25 vCPU
+  memory                   = "512" # 512 MB RAM
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
 
   container_definitions = jsonencode([{
@@ -101,7 +101,7 @@ resource "aws_ecs_task_definition" "backend" {
     # Secrets injectés depuis SSM au démarrage du container (jamais en clair)
     secrets = [
       { name = "DB_PASSWORD", valueFrom = aws_ssm_parameter.db_password.arn },
-      { name = "JWT_SECRET",  valueFrom = aws_ssm_parameter.jwt_secret.arn }
+      { name = "JWT_SECRET", valueFrom = aws_ssm_parameter.jwt_secret.arn }
     ]
 
     # Logs visibles dans CloudWatch > /ecs/mini-chat-backend
@@ -134,7 +134,7 @@ resource "aws_lb_target_group" "backend" {
   target_type = "ip" # Requis pour Fargate (pas d'instance EC2)
 
   health_check {
-    path                = "/"      # GET / → "Backend OK"
+    path                = "/" # GET / → "Backend OK"
     healthy_threshold   = 2
     unhealthy_threshold = 3
     timeout             = 5

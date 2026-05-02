@@ -7,7 +7,7 @@ resource "aws_vpc" "mini_chat_vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
   enable_dns_support   = true
-  tags = { Name = "mini-chat-vpc" }
+  tags                 = { Name = "mini-chat-vpc" }
 }
 
 # ── SUBNETS ──────────────────────────────────────────────────
@@ -17,7 +17,7 @@ resource "aws_subnet" "public_1" {
   cidr_block              = "10.0.1.0/24"
   availability_zone       = "eu-west-3a"
   map_public_ip_on_launch = true
-  tags = { Name = "mini-chat-public-1" }
+  tags                    = { Name = "mini-chat-public-1" }
 }
 
 resource "aws_subnet" "public_2" {
@@ -25,7 +25,7 @@ resource "aws_subnet" "public_2" {
   cidr_block              = "10.0.4.0/24"
   availability_zone       = "eu-west-3c"
   map_public_ip_on_launch = true
-  tags = { Name = "mini-chat-public-2" }
+  tags                    = { Name = "mini-chat-public-2" }
 }
 
 # 2 subnets privés pour RDS (AWS exige 2 AZ minimum)
@@ -33,14 +33,14 @@ resource "aws_subnet" "private_1" {
   vpc_id            = aws_vpc.mini_chat_vpc.id
   cidr_block        = "10.0.2.0/24"
   availability_zone = "eu-west-3a"
-  tags = { Name = "mini-chat-private-1" }
+  tags              = { Name = "mini-chat-private-1" }
 }
 
 resource "aws_subnet" "private_2" {
   vpc_id            = aws_vpc.mini_chat_vpc.id
   cidr_block        = "10.0.3.0/24"
   availability_zone = "eu-west-3c"
-  tags = { Name = "mini-chat-private-2" }
+  tags              = { Name = "mini-chat-private-2" }
 }
 
 # ── INTERNET GATEWAY + ROUTES ────────────────────────────────

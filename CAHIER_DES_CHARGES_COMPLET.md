@@ -226,7 +226,6 @@ La base de donnees est inaccessible depuis Internet et depuis l'ALB directement.
 | bcrypt | 5.x | Hachage des mots de passe |
 | jsonwebtoken | 9.x | Generation et verification tokens JWT |
 | cors | 2.x | Gestion des requetes cross-origin |
-| prom-client | 15.x | Exposition des metriques Prometheus |
 
 ### 4.2 DevOps et Infrastructure
 
@@ -426,12 +425,11 @@ L'architecture mini-chat est composee de quatre services critiques :
 
 | Service | Indicateur | Outil / Source | Seuil | Action en cas d'alerte |
 |---------|-----------|---------------|-------|----------------------|
-| ALB | Disponibilite (health check `GET /`) | ALB Target Group — CloudWatch | Indisponible > 1 min | Lire CloudWatch `/ecs/mini-chat-backend`, forcer redeploi ECS |
-| API | Taux d'erreurs HTTP 5xx | `/metrics` — `http_requests_total` | > 2% sur 5 min | Analyser les logs, rollback vers la revision precedente |
+| ALB | Disponibilite (health check `GET /`) | CloudWatch — ALB TargetResponseTime | Indisponible > 1 min | Lire CloudWatch `/ecs/mini-chat-backend`, forcer redeploi ECS |
+| ALB | Taux d'erreurs HTTP 5xx | CloudWatch — ALB HTTPCode_ELB_5XX_Count | > 2% sur 5 min | Analyser les logs CloudWatch, rollback vers la revision precedente |
 | Container ECS | Nombre de redemarrages | CloudWatch ECS Logs | > 3 / heure | Lire les logs, verifier OOM ou crash au demarrage |
 | Container ECS | CPU utilise | CloudWatch — ECS CPUUtilization | > 80% pendant 10 min | Analyser la charge, envisager l'auto scaling |
 | RDS MySQL | Espace disque libre | CloudWatch — RDS FreeStorageSpace | < 2 Go restants (sur 20 Go) | Purger les vieux messages, augmenter le volume RDS |
-| API | Utilisateurs actifs (fenetre 5 min) | `/metrics` — `active_users` | 0 apres activite connue | Verifier JWT, tester la connexion a la base de donnees |
 
 ### 8.4 KPI et objectifs de service (SLA)
 
@@ -448,9 +446,7 @@ Ces seuils sont justifies :
 - **2% d'erreurs 5xx** : taux acceptable pour absorber les erreurs transitoires sans impacter les utilisateurs
 - **2h de restauration** : correspond a la duree d'un redeploi manuel complet si le pipeline echoue
 
-### 8.5 Outils de supervision
-
-#### Production — AWS CloudWatch
+### 8.5 Outil de supervision — AWS CloudWatch
 
 | Avantage | Detail |
 |----------|--------|
@@ -459,37 +455,25 @@ Ces seuils sont justifies :
 | Securise | Pas de port supplementaire a ouvrir |
 | Economique | Inclus dans le free tier AWS |
 
-**Logs accessibles** : AWS Console → CloudWatch → Journaux → `/ecs/mini-chat-backend`
+**Logs** : AWS Console → CloudWatch → Journaux → `/ecs/mini-chat-backend`
 
-Logs produits au demarrage confirmes :
+Logs confirmes au demarrage :
 ```
 Schema initialized
 Server started on port 3000
 ```
 
 **Metriques CloudWatch disponibles** :
-- ECS CPUUtilization et MemoryUtilization (par service et par task)
-- ALB RequestCount, HTTPCode_ELB_5XX_Count, TargetResponseTime
-- RDS DatabaseConnections, FreeStorageSpace
 
-#### Developpement local — Prometheus + Grafana
-
-Prometheus et Grafana sont configures dans `docker/docker-compose.yml` pour le developpement local uniquement.
-
-Realise en local :
-- Dashboard avec requetes HTTP totales, utilisateurs actifs, taux d'erreurs
-- Alertes configurees avec envoi sur **Discord via webhook**
-- Regles d'alertes : CPU eleve, backend down, nombre d'utilisateurs
-
-**Metriques exposees par le backend sur `/metrics`** :
-
-| Metrique | Type | Description |
-|----------|------|-------------|
-| `http_requests_total` | Counter | Nombre total de requetes HTTP par code et route |
-| `active_users` | Gauge | Utilisateurs avec token JWT actif (fenetre 5 min) |
-| `messages_created_total` | Counter | Messages envoyes depuis le demarrage |
-| `process_cpu_user_seconds_total` | Counter | CPU consomme par le process Node.js |
-| `process_resident_memory_bytes` | Gauge | RAM utilisee par le process Node.js |
+| Source | Metrique | Ce qu'elle mesure |
+|--------|---------|------------------|
+| ECS | CPUUtilization | CPU consomme par le container |
+| ECS | MemoryUtilization | RAM utilisee par le container |
+| ALB | HTTPCode_ELB_5XX_Count | Nombre d'erreurs 5xx retournees |
+| ALB | TargetResponseTime | Temps de reponse de l'application |
+| ALB | RequestCount | Volume de trafic recu |
+| RDS | FreeStorageSpace | Espace disque restant sur la base |
+| RDS | DatabaseConnections | Connexions actives vers MySQL |
 
 ### 8.6 Exemple d'incident reel et analyse
 
@@ -601,9 +585,8 @@ Augmenter automatiquement le nombre de containers selon la charge :
 | Semaine 1 | Developpement backend minimal : Express, route `/`, MySQL |
 | Semaine 2 | Authentification : bcrypt, JWT, routes `/auth/register` et `/auth/login` |
 | Semaine 2 | Tests API avec Thunder Client (VS Code) |
-| Semaine 3 | Docker Compose : backend + MySQL + Prometheus + Grafana |
+| Semaine 3 | Docker Compose : backend + MySQL |
 | Semaine 3 | Script d'automatisation `start.bat` pour lancement local |
-| Semaine 3 | Alertes Discord via webhook Prometheus Alertmanager |
 | Semaine 3 | Frontend HTML/CSS/JS (connexion, messages, design glassmorphism) |
 
 ### 10.2 Phase 1 — Infrastructure AWS EC2 (Avril 2026)
@@ -648,7 +631,6 @@ Augmenter automatiquement le nombre de containers selon la charge :
 | Pipeline CI/CD | `.github/workflows/ci-cd.yml` | Operationnel |
 | Application en production | URL ALB eu-west-3 | En ligne |
 | Monitoring production | CloudWatch `/ecs/mini-chat-backend` | Operationnel |
-| Monitoring local | Prometheus + Grafana + Discord | Operationnel |
 
 ---
 
@@ -686,7 +668,7 @@ Augmenter automatiquement le nombre de containers selon la charge :
 |----------------|--------------------------|
 | Automatiser le deploiement d'une infrastructure | Terraform + GitHub Actions : push = deploiement complet |
 | Gerer des containers | Docker multi-stage, ECR, ECS Fargate, Docker Compose local |
-| Exploiter une solution de supervision (BC03) | CloudWatch (prod), Prometheus/Grafana/Discord (local), metriques `/metrics` |
+| Exploiter une solution de supervision (BC03) | CloudWatch : logs ECS, metriques ALB/ECS/RDS, analyse d'incidents |
 | Securiser l'infrastructure | SSM secrets, pas de SSH, moindre privilege, XSS + SQL Injection |
 | Infrastructure as Code | Terraform (modules, state S3, moved blocks, import, variables) |
 | CI/CD | GitHub Actions 3 jobs, secrets, tracabilite par hash de commit |

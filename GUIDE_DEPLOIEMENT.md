@@ -228,17 +228,15 @@ Server started on port 3000
 - Statut `EN COURS D'EXECUTION` : tout va bien
 - Statut `ARRETE` avec code d'erreur : lire les logs CloudWatch
 
-### Metriques applicatives
+### Metriques CloudWatch disponibles
 
-Le backend expose ses metriques sur `/metrics` (format Prometheus).
-
-| Metrique | Description |
-|----------|-------------|
-| `http_requests_total` | Nombre total de requetes HTTP recues |
-| `active_users` | Utilisateurs avec token JWT actif |
-| `messages_created_total` | Nombre de messages envoyes |
-
-Prometheus et Grafana sont configures dans `docker/` pour le developpement local uniquement.
+| Source | Metrique | Description |
+|--------|---------|-------------|
+| ECS | CPUUtilization | CPU du container |
+| ECS | MemoryUtilization | RAM du container |
+| ALB | HTTPCode_ELB_5XX_Count | Erreurs 5xx |
+| ALB | TargetResponseTime | Temps de reponse |
+| RDS | FreeStorageSpace | Espace disque restant |
 
 ### Rollback manuel
 
@@ -408,15 +406,14 @@ mini-chat/
 │   └── src/
 │       ├── config/database.js # Pool MySQL + migration au demarrage
 │       ├── middleware/
-│       │   ├── auth.js        # Verification token JWT
-│       │   └── metrics.js     # Metriques Prometheus
+│       │   └── auth.js        # Verification token JWT
 │       └── routes/
 │           ├── auth.js        # Inscription / Connexion
 │           └── messages.js    # Envoi / Reception messages
 ├── database/
 │   └── init.sql               # Schema SQL (reference, execute au demarrage de l'app)
 ├── docker/
-│   ├── docker-compose.yml     # Local uniquement (backend + MySQL + Prometheus + Grafana)
+│   ├── docker-compose.yml     # Local uniquement (backend + MySQL)
 │   └── .env.example           # Template variables locales
 └── terraform/
     ├── main.tf                # VPC, subnets, security groups, RDS

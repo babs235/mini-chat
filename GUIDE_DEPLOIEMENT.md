@@ -1,13 +1,20 @@
 # GUIDE DE DEPLOIEMENT — Mini-Chat
 
-**Auteur** : Babikir Ibrahim  
-**Version** : 2.0 — Architecture ECS Fargate  
-**Derniere mise a jour** : Mai 2026
+**Auteur** : Babikir Ibrahim
+**Formation** : Administrateur Systemes DevOps — Titre RNCP Niveau 6
+**Depot** : github.com/babs235/mini-chat
+
+| Version | Date | Changement principal |
+|---------|------|----------------------|
+| v1.0 | Avril 2026 | Architecture EC2 + RDS, pipeline CI/CD initial |
+| v2.0 | Mai 2026 | Migration ECS Fargate, suppression SSH et user_data |
+| v2.1 | Mai 2026 | Retrait Prometheus/Grafana, adoption CloudWatch |
 
 ---
 
 ## TABLE DES MATIERES
 
+0. [Journal du projet](#0-journal-du-projet)
 1. [Architecture](#1-architecture)
 2. [Prerequis](#2-prerequis)
 3. [Secrets GitHub](#3-secrets-github)
@@ -16,6 +23,130 @@
 6. [Monitoring](#6-monitoring)
 7. [Depannage](#7-depannage)
 8. [Commandes utiles](#8-commandes-utiles)
+
+---
+
+## 0. JOURNAL DU PROJET
+
+Cette section retrace les grandes etapes du projet, les choix techniques faits a chaque phase, et les raisons qui ont pousse a les changer ou les conserver. L'objectif est d'avoir une traçabilite claire de l'evolution de l'application, dans l'esprit du dossier professionnel ASD.
+
+---
+
+### Mars 2026 — Demarrage du projet (Seance 1, 02/03)
+
+Le programme ASD demarre le 2 mars 2026. Des la premiere seance, le projet est identifie : une application de messagerie interne, mini-chat, pour couvrir les trois blocs de competences — automatisation d'infrastructure (BC01), deploiement continu (BC02), et supervision des services (BC03).
+
+**Choix technique initial — pourquoi Node.js et MySQL ?**
+Node.js est bien adapte aux connexions multiples simultanees, ce qui correspond naturellement a une application de chat. MySQL est une base relationnelle robuste, standard dans les projets web, et facile a conteneuriser. Express a ete choisi pour sa simplicite : c'est le framework minimal, sans surcouche inutile.
+
+**Semaines 1 et 2 — Developpement du backend**
+
+Le backend est construit progressivement :
+- Routes `/auth/register` et `/auth/login` avec hachage `bcrypt` et tokens JWT
+- Routes `/messages` (GET et POST) protegees par verification du token
+- Protection XSS par echappement HTML avant insertion en base
+- Requetes SQL preparees pour se proteger des injections
+
+Les routes sont testees avec Thunder Client dans VS Code avant toute conteneurisation.
+
+**Semaine 2 — Frontend**
+
+Interface HTML/CSS/JS simple : une page de connexion, une page de messages avec rafraichissement automatique toutes les 3 secondes. Design glassmorphism, responsive mobile-first. Le frontend est statique, servi directement par Express depuis le dossier `frontend/`.
+
+**Semaine 3 — Conteneurisation et environnement local**
+
+Docker Compose est mis en place pour lancer l'environnement complet en une commande. A ce stade, le `docker-compose.yml` inclut : le backend Node.js, une base MySQL avec healthcheck, Prometheus et Grafana.
+
+Prometheus et Grafana sont ajoutes parce que la seance du 27 avril (BC03 — Statistiques de services) demande une solution de supervision. Le backend expose une route `/metrics` au format Prometheus. Des alertes sont configurees avec envoi sur Discord via webhook Alertmanager — CPU eleve, backend down, nombre d'utilisateurs actifs.
+
+Un script `start.bat` est cree pour lancer l'environnement local en une commande sur Windows.
+
+---
+
+### Avril 2026 — Premiere infrastructure AWS (BC01 mise en production)
+
+**Semaine 4 — Terraform v1 : EC2 + RDS**
+
+L'infrastructure est ecrite entierement en Terraform : VPC, subnets publics et prives, internet gateway, security groups, instance EC2, RDS MySQL. Le pipeline GitHub Actions (premiere version) est cree : il installe les dependances, lance les tests, puis deploie via SSH sur l'EC2.
+
+**Dockerfile multi-stage Alpine**
+
+Le Dockerfile est reecrit en multi-stage pour reduire la taille de l'image. Le stage `deps` installe les dependances avec `npm ci --only=production`. Le stage final ne contient que le code et les modules, sans les outils de build. Resultat : environ 180 MB au lieu de 950 MB avec `node:20` standard.
+
+**Probleme rencontre : les containers ne demarraient pas**
+
+Apres plusieurs pushs successifs, le pipeline passait en vert mais l'application ne repondait pas. En inspectant l'EC2, le constat etait clair :
+- Le script `user_data` s'executait de facon asynchrone au demarrage de l'instance, soit 8 a 10 minutes apres le deploiement
+- Ce script utilisait les valeurs par defaut du `.env.example` au lieu des vraies variables d'environnement
+- L'image Docker etait buildee directement sur l'EC2 depuis le code source, au lieu d'etre tiree depuis ECR
+- A chaque nouveau commit, rien ne forçait l'EC2 a redemarrer l'application
+
+Ce probleme a rendu EC2 inadapte au deploiement continu tel qu'attendu dans le cadre ASD.
+
+---
+
+### Mai 2026 — Migration vers ECS Fargate (BC02 finalisation)
+
+**Decision : abandonner EC2 et passer a ECS Fargate**
+
+ECS Fargate resout tous les problemes identifies avec EC2 :
+- Plus de `user_data`, plus de SSH, plus de connexion manuelle a la machine
+- Le pipeline fait tout : build de l'image, push dans ECR, mise a jour de la Task Definition ECS
+- Si le container crashe, ECS le redemmarre automatiquement
+- L'ALB (Application Load Balancer) fait un health check avant de basculer le trafic : si le nouveau container ne repond pas, l'ancien reste actif (rollback automatique)
+
+**Ce qui a ete mis en place :**
+- ECR pour stocker les images Docker taguees avec le hash exact du commit (`github.sha`)
+- ALB avec deux subnets publics (eu-west-3a et eu-west-3c) pour la haute disponibilite
+- Trois security groups avec le principe du moindre privilege : ALB n'accepte que le port 80 depuis Internet, ECS n'accepte que le port 3000 depuis l'ALB, RDS n'accepte que le port 3306 depuis ECS
+- SSM Parameter Store pour les secrets : `DB_PASSWORD` et `JWT_SECRET` stockes chiffres, jamais en clair dans le code ni dans les logs
+- CloudWatch pour les logs du container : le groupe `/ecs/mini-chat-backend` recoit tous les logs en temps reel, avec retention 7 jours
+
+**Schema de base de donnees automatique**
+
+RDS en subnet prive n'a pas d'acces Query Editor (contrairement a Aurora Serverless). Plutot que de necessiter une intervention manuelle a chaque nouveau deploiement, la fonction `initSchema()` dans `database.js` cree les tables automatiquement au demarrage du container avec `CREATE TABLE IF NOT EXISTS`. C'est idempotent : si les tables existent deja, rien ne se passe.
+
+**Problemes Terraform rencontres et resolus**
+
+Plusieurs erreurs de state Terraform ont ete rencontrees lors de la migration :
+- Renommage de ressources → Terraform voulait detruire et recreer → resolution par des blocs `moved` dans `terraform/moved.tf`
+- Description d'un security group immuable dans AWS → restauration de la description originale pour que seule la regle d'entree change en place
+- Double entree du DB Subnet Group en state → resolution par `terraform state rm` + `terraform import` directement dans le pipeline CI/CD
+- Quota IAM de 10 politiques managees depasse → suppression des doublons et politiques inutilisees
+
+---
+
+### Mai 2026 — Retrait de Prometheus et Grafana (v2.1)
+
+**Contexte**
+
+Prometheus et Grafana avaient ete mis en place en local des la semaine 3 parce que la seance BC03 du 27 avril presentait ces outils comme reference. Le backend exposait ses metriques sur `/metrics` (prom-client). Des alertes etaient configurees avec Discord via webhook.
+
+**Pourquoi ce choix a ete revise**
+
+Prometheus et Grafana tournaient uniquement sur le PC local via Docker Compose. Ils ne supervisaient pas le service deploye sur AWS — ils supervisaient une instance locale qui n'est pas accessible en production et qui ne tourne pas en permanence.
+
+BC03 demande de superviser les *services deployes*. L'application en production tourne sur ECS Fargate en region eu-west-3. Prometheus en local ne voit pas ce container.
+
+Par ailleurs, deployer Prometheus et Grafana sur AWS aurait necessite :
+- Une instance EC2 ou un container ECS dedie a Prometheus
+- Un port ouvert supplementaire (9090) sur le security group
+- Une configuration de scraping vers l'endpoint `/metrics` du container ECS
+- Une gestion de la persistance pour Grafana
+
+CloudWatch est deja integre nativement a ECS : les logs sont envoyes automatiquement sans configuration, les metriques CPU, memoire, ALB 5xx et temps de reponse sont disponibles directement dans la console AWS. Zero port supplementaire, zero infrastructure de monitoring a gerer.
+
+**Ce qui a ete supprime**
+- `backend/src/middleware/metrics.js` (prom-client, compteurs Prometheus)
+- `docker/prometheus.yml` et `docker/prometheus/alerts/` (configuration Alertmanager)
+- Services `prometheus` et `grafana` dans `docker-compose.yml`
+- Dependance `prom-client` dans `package.json`
+- Route `/metrics` dans `server.js`
+- Import de `messagesCreated` dans `messages.js`
+
+**Ce qui remplace**
+
+CloudWatch collecte nativement : logs du container ECS, CPUUtilization, MemoryUtilization, ALB HTTPCode_ELB_5XX_Count, ALB TargetResponseTime, RDS FreeStorageSpace. Ces indicateurs couvrent les cinq familles de metriques attendues pour BC03 (disponibilite, performance, erreurs, ressources, stockage).
 
 ---
 

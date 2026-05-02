@@ -21,14 +21,30 @@ pool.on('error', (err) => {
   console.error('💥 Erreur MySQL Pool:', err.message);
 });
 
-// Test initial
-pool.getConnection((err, conn) => {
-  if (err) {
-    console.error("❌ Erreur initiale:", err.message);
-    return;
-  }
-  console.log("✅ Pool MySQL prêt");
-  conn.release();
-});
+const db = pool.promise();
 
-module.exports = pool.promise();
+// Crée les tables si elles n'existent pas encore (migration au démarrage)
+async function initSchema() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      username VARCHAR(50) NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS messages (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT,
+      message TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+  console.log("✅ Schema OK");
+}
+
+initSchema().catch((err) => console.error("❌ Schema init:", err.message));
+
+module.exports = db;

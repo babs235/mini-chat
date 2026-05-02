@@ -1,639 +1,728 @@
-# CAHIER DES CHARGES COMPLET
+# CAHIER DES CHARGES — Mini-Chat
 
-## Mini-Chat Application - Projet DevOps Full Stack
-
----
-
-## TABLE DES MATIÈRES
-
-1. [Présentation du Projet](#1-présentation-du-projet)
-2. [Fonctionnalités Détaillées](#2-fonctionnalités-détaillées)
-3. [Architecture Technique Complète](#3-architecture-technique-complète)
-4. [Stack Technique Détaillée](#4-stack-technique-détaillée)
-5. [Structure du Code](#5-structure-du-code)
-6. [Exigences Non-Fonctionnelles](#6-exigences-non-fonctionnelles)
-7. [Sécurité](#7-sécurité)
-8. [Monitoring et Observabilité](#8-monitoring-et-observabilité)
-9. [Scripts de Provisionnement et Backup](#9-scripts-de-provisionnement-et-backup)
-10. [Planning et Livrables](#10-planning-et-livrables)
-11. [Contraintes et Risques](#11-contraintes-et-risques)
+## Application de messagerie — Projet ASD DevOps
 
 ---
 
-## 1. PRÉSENTATION DU PROJET
+**Auteur** : Babikir Ibrahim
+**Formation** : Administrateur Systemes et DevOps (ASD)
+**Version** : 4.0 — Architecture ECS Fargate (Mai 2026)
+**Depot GitHub** : github.com/babs235/mini-chat
 
-### 1.1 Contexte du Projet
+---
 
-Dans le cadre de la formation **Administrateur DevOps**, ce projet vise à démontrer la maîtrise complète du cycle de développement et déploiement d'une application moderne, de la conception à la mise en production sur infrastructure cloud.
+## TABLE DES MATIERES
 
-### 1.2 Objectifs Principaux
+1. [Presentation du projet](#1-presentation-du-projet)
+2. [Fonctionnalites de l'application](#2-fonctionnalites-de-lapplication)
+3. [Architecture technique](#3-architecture-technique)
+4. [Stack technique](#4-stack-technique)
+5. [Pipeline CI/CD](#5-pipeline-cicd)
+6. [Infrastructure AWS](#6-infrastructure-aws)
+7. [Securite](#7-securite)
+8. [Statistiques de services — BC03](#8-statistiques-de-services--bc03)
+9. [Evolutions prevues](#9-evolutions-prevues)
+10. [Planning et livrables](#10-planning-et-livrables)
+11. [Retour d'experience](#11-retour-dexperience)
 
-| ID | Objectif | Priorité |
-|----|----------|----------|
-| O1 | Développer une application de messagerie fonctionnelle | Haute |
-| O2 | Conteneuriser l'application avec Docker | Haute |
-| O3 | Orchestrer avec Docker Compose | Haute |
-| O4 | Déployer sur AWS avec Terraform (IaC) | Haute |
-| O5 | Implémenter CI/CD avec GitHub Actions | Moyenne |
-| O6 | Mettre en place le monitoring Prometheus/Grafana | Haute |
-| O7 | Sécuriser l'application (JWT, XSS, bcrypt) | Haute |
+---
 
-### 1.3 Périmètre du Projet
+## 1. PRESENTATION DU PROJET
+
+### 1.1 Contexte
+
+Dans le cadre de la formation **Administrateur Systemes et DevOps**, ce projet demontre la maitrise complete du cycle de vie d'une application cloud-native : developpement, conteneurisation, deploiement automatise, securite et supervision.
+
+Le projet a evolue en trois phases :
+- **Phase 0 (Mars 2026)** : Developpement local, authentification, Docker Compose, Prometheus/Grafana, scripts d'automatisation
+- **Phase 1 (Avril 2026)** : Premiere infrastructure AWS (EC2 + RDS), pipeline CI/CD initial
+- **Phase 2 (Mai 2026)** : Migration vers ECS Fargate, suppression de tout acces SSH, pipeline entierement automatise
+
+### 1.2 Objectifs
+
+| ID | Objectif | Statut |
+|----|----------|--------|
+| O1 | Developper une application de messagerie fonctionnelle | Realise |
+| O2 | Conteneuriser l'application avec Docker (multi-stage) | Realise |
+| O3 | Orchestrer en local avec Docker Compose | Realise |
+| O4 | Deployer sur AWS avec Terraform (Infrastructure as Code) | Realise |
+| O5 | Implementer un pipeline CI/CD complet avec GitHub Actions | Realise |
+| O6 | Securiser les secrets avec AWS SSM Parameter Store | Realise |
+| O7 | Deployer sur ECS Fargate (sans EC2, sans SSH) | Realise |
+| O8 | Superviser le service avec CloudWatch et metriques Prometheus | Realise |
+| O9 | Ajouter HTTPS avec nom de domaine (mini-chat.dev) | Prevu |
+
+### 1.3 Perimetre
 
 **Inclus :**
-- Backend API REST (Node.js/Express)
-- Frontend web (HTML/CSS/JS)
-- Base de données MySQL
-- Conteneurisation Docker
-- Infrastructure AWS (EC2, RDS optionnel)
-- Monitoring et alerting
+- Application backend API REST (Node.js/Express)
+- Frontend web (HTML/CSS/JavaScript)
+- Base de donnees MySQL managee (AWS RDS)
+- Conteneurisation Docker optimisee multi-stage
+- Infrastructure AWS entierement en code (Terraform)
+- Pipeline CI/CD automatise de bout en bout
+- Gestion des secrets chiffres (SSM Parameter Store)
+- Supervision production (CloudWatch) et local (Prometheus + Grafana + alertes Discord)
+- Schema de base de donnees auto-cree au demarrage
 
-**Non inclus (hors scope) :**
+**Non inclus :**
 - Application mobile native
-- WebSocket temps réel (polling utilisé)
-- Système de fichier multimédia
+- WebSocket temps reel (polling HTTP 3s utilise)
 - Authentification OAuth externe
 
 ---
 
-## 2. FONCTIONNALITÉS DÉTAILLÉES
+## 2. FONCTIONNALITES DE L'APPLICATION
 
-### 2.1 Fonctionnalités Backend
+### 2.1 API Backend
 
-#### Module Authentification (`backend/src/routes/auth.js`)
+#### Authentification
 
-| Fonction | Route | Méthode | Description |
-|----------|-------|---------|-------------|
-| Inscription | `/auth/register` | POST | Création utilisateur avec validation |
-| Connexion | `/auth/login` | POST | Authentification JWT |
+| Route | Methode | Description |
+|-------|---------|-------------|
+| `/auth/register` | POST | Creation compte avec validation et hachage bcrypt |
+| `/auth/login` | POST | Connexion avec generation token JWT |
 
-**Spécifications techniques :**
-- Validation des entrées : username 3-20 caractères, password min 6 caractères
-- Hachage bcrypt avec salt rounds 10
-- Génération JWT avec secret statique (correction du bug Date.now())
-- Requêtes SQL préparées (prévention injection SQL)
+Specifications :
+- Validation : username 3-20 caracteres, password minimum 6 caracteres
+- Hachage bcrypt avec 10 rounds de salage
+- Token JWT signe avec secret injecte par AWS SSM, expiration 1 heure
+- Requetes SQL preparees (protection injection SQL)
 
-#### Module Messages (`backend/src/routes/messages.js`)
+#### Messages
 
-| Fonction | Route | Méthode | Auth | Description |
-|----------|-------|---------|------|-------------|
-| Liste messages | `/messages` | GET | JWT | Récupération historique |
-| Envoi message | `/messages` | POST | JWT | Création message |
+| Route | Methode | Auth | Description |
+|-------|---------|------|-------------|
+| `/messages` | GET | JWT | Recuperation de l'historique des messages |
+| `/messages` | POST | JWT | Envoi d'un message avec protection XSS |
 
-**Spécifications techniques :**
-- Protection XSS avec échappement HTML
-- Validation : message non vide, max 1000 caractères
-- Filtrage des caractères spéciaux `<script>` etc.
-- Clé étrangère `user_id` vers table `users`
+#### Metriques et disponibilite
 
-### 2.2 Fonctionnalités Frontend
+| Route | Methode | Description |
+|-------|---------|-------------|
+| `/metrics` | GET | Metriques applicatives au format Prometheus |
+| `/` | GET | Health check ALB (retourne "Backend OK") |
 
-#### Page d'Authentification (`index.html`)
+### 2.2 Frontend
 
-| Élément | Description |
+| Page | Fonctionnalites |
+|------|-----------------|
+| `index.html` | Formulaire connexion/inscription, toggle, validation client |
+| `messages.html` | Bulles de chat, refresh automatique 3s, avatars dynamiques, deconnexion |
+
+Design : glassmorphism, animations CSS, responsive mobile-first.
+
+### 2.3 Schema de base de donnees
+
+```sql
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL,
+  password VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
+  message TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+Les tables sont creees automatiquement au demarrage du container (`initSchema()` dans `database.js`). Aucune intervention manuelle n'est necessaire.
+
+---
+
+## 3. ARCHITECTURE TECHNIQUE
+
+### 3.1 Vue d'ensemble
+
+```
+Developpeur
+    |
+    | git push main
+    v
+GitHub Actions (CI/CD)
+    |
+    |-- Job 1 : Tests et Lint
+    |-- Job 2 : Build image Docker -> push ECR
+    |-- Job 3 : Terraform apply -> ECS deploie la nouvelle version
+    |
+    v
+AWS Infrastructure
+    |
+    |-- ALB (Application Load Balancer)
+    |       Expose l'application sur Internet
+    |       Health check sur GET / avant bascule du trafic
+    |       Zero coupure au deploiement (rolling update)
+    |
+    |-- ECS Fargate
+    |       Container Node.js (image depuis ECR)
+    |       Redemarre automatiquement si crash
+    |       Secrets injectes depuis SSM au demarrage
+    |
+    |-- RDS MySQL (subnet prive)
+    |       Inaccessible depuis Internet
+    |       Backup automatique quotidien
+    |
+    |-- CloudWatch
+            Logs du container en temps reel
+            Retention 7 jours
+```
+
+### 3.2 Architecture reseau
+
+```
+Internet
+    |
+  [ ALB ] ..................... subnet public  eu-west-3a + eu-west-3c
+    |
+  [ ECS Fargate Task ] ........ subnet public  eu-west-3a + eu-west-3c
+    |                           (assign_public_ip pour atteindre ECR)
+  [ RDS MySQL ] ............... subnet prive   eu-west-3a + eu-west-3c
+                                (aucun acces depuis Internet)
+```
+
+### 3.3 Flux de deploiement
+
+```
+1. Developpeur push code sur GitHub (branche main)
+2. GitHub Actions lance le pipeline automatiquement
+3. Job 1 : tests, lint
+4. Job 2 : docker build -> image taguee avec le hash du commit
+           docker push ECR :sha-commit + :latest
+5. Job 3 : terraform apply
+           -> cree une nouvelle Task Definition ECS avec la nouvelle image
+           -> ECS Service lance le nouveau container
+           -> ALB verifie le health check (GET /)
+           -> Si OK : trafic bascule vers le nouveau container
+           -> Si KO : ancien container reste actif (rollback automatique)
+6. Logs visibles dans CloudWatch en temps reel
+```
+
+### 3.4 Security Groups (principe du moindre privilege)
+
+| Security Group | Autorise | Source |
+|----------------|----------|--------|
+| `mini-chat-alb-sg` | Port 80 entrant | 0.0.0.0/0 (Internet) |
+| `mini-chat-ecs-sg` | Port 3000 entrant | ALB uniquement |
+| `mini-chat-db-sg` | Port 3306 entrant | ECS uniquement |
+
+La base de donnees est inaccessible depuis Internet et depuis l'ALB directement.
+
+---
+
+## 4. STACK TECHNIQUE
+
+### 4.1 Application
+
+| Technologie | Version | Usage |
+|-------------|---------|-------|
+| Node.js | 20 LTS | Runtime backend |
+| Express.js | 4.x | Framework API REST |
+| mysql2 | 3.x | Driver MySQL avec Promises et requetes preparees |
+| bcrypt | 5.x | Hachage des mots de passe |
+| jsonwebtoken | 9.x | Generation et verification tokens JWT |
+| cors | 2.x | Gestion des requetes cross-origin |
+| prom-client | 15.x | Exposition des metriques Prometheus |
+
+### 4.2 DevOps et Infrastructure
+
+| Technologie | Version | Usage |
+|-------------|---------|-------|
+| Docker | Latest | Conteneurisation multi-stage (Alpine) |
+| Docker Compose | v2 | Orchestration locale (developpement uniquement) |
+| Terraform | 1.5 | Infrastructure as Code AWS |
+| GitHub Actions | - | Pipeline CI/CD automatise |
+| AWS ECR | - | Registre d'images Docker prive |
+| AWS ECS Fargate | - | Execution des containers sans gestion de serveur |
+| AWS ALB | - | Load balancer applicatif, rolling updates, health checks |
+| AWS RDS MySQL | 8.0 | Base de donnees managee en subnet prive |
+| AWS SSM Parameter Store | - | Stockage chiffre des secrets |
+| AWS CloudWatch | - | Logs et monitoring des containers en production |
+| AWS S3 + DynamoDB | - | Backend state Terraform avec verrou |
+
+### 4.3 Dockerfile multi-stage
+
+```dockerfile
+# Stage 1 : installation des dependances (image Alpine legere)
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Stage 2 : image finale sans outils de build
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+EXPOSE 3000
+CMD ["node", "server.js"]
+```
+
+Resultat : image finale ~180 MB au lieu de ~950 MB avec `node:20`.
+
+---
+
+## 5. PIPELINE CI/CD
+
+### 5.1 Declenchement
+
+Chaque push sur la branche `main` declenche le pipeline automatiquement. Aucune action manuelle n'est requise.
+
+### 5.2 Structure du pipeline
+
+```
+Job 1 : Tests et Lint
+  Duree : ~30 secondes
+  - npm ci (installation dependances)
+  - npm run lint
+  - npm test
+
+Job 2 : Build and Push to ECR
+  Duree : ~2 minutes
+  Necessite : Job 1 reussi
+  - Connexion a AWS ECR
+  - docker build (multi-stage Alpine)
+  - docker push image:<hash-commit>   <- tracabilite exacte
+  - docker push image:latest          <- reference rapide
+
+Job 3 : Deploy via Terraform
+  Duree : ~3-5 minutes
+  Necessite : Job 2 reussi
+  - terraform init (recupere le state depuis S3)
+  - terraform validate + fmt -check
+  - Nettoyage etat Terraform si necessaire
+  - terraform apply -auto-approve
+    -> Cree nouvelle Task Definition ECS avec l'image du commit
+    -> ECS Service deploie via rolling update
+    -> ALB valide le health check avant bascule du trafic
+```
+
+### 5.3 Tracabilite
+
+Chaque image Docker est taguee avec le hash exact du commit Git. La Task Definition ECS indique quelle image tourne. On peut identifier a tout moment quel commit est en production.
+
+### 5.4 Secrets du pipeline
+
+| Secret GitHub | Usage dans le pipeline |
+|---------------|------------------------|
+| `AWS_ACCESS_KEY_ID` | Authentification AWS |
+| `AWS_SECRET_ACCESS_KEY` | Authentification AWS |
+| `DB_PASSWORD` | Injecte dans SSM -> container ECS |
+| `JWT_SECRET` | Injecte dans SSM -> container ECS |
+
+Les secrets ne transitent jamais en clair. Terraform les stocke dans SSM Parameter Store (chiffre AES-256). ECS les recupere depuis SSM au demarrage du container.
+
+---
+
+## 6. INFRASTRUCTURE AWS
+
+### 6.1 Fichiers Terraform
+
+| Fichier | Contenu |
+|---------|---------|
+| `terraform/main.tf` | VPC, subnets, internet gateway, security groups, RDS |
+| `terraform/ecs.tf` | IAM roles, SSM parameters, CloudWatch, ECS cluster/service/task, ALB |
+| `terraform/variables.tf` | Variables d'entree (region, secrets, image_tag) |
+| `terraform/outputs.tf` | URL ALB, endpoint RDS, noms ECS |
+| `terraform/provider.tf` | Provider AWS, backend S3 + DynamoDB |
+| `terraform/moved.tf` | Historique des renommages de ressources |
+
+### 6.2 Ressources creees
+
+| Ressource AWS | Nom | Configuration |
+|---------------|-----|---------------|
+| VPC | mini-chat-vpc | 10.0.0.0/16, DNS enabled |
+| Subnet public 1 | mini-chat-public-1 | 10.0.1.0/24, eu-west-3a |
+| Subnet public 2 | mini-chat-public-2 | 10.0.4.0/24, eu-west-3c |
+| Subnet prive 1 | mini-chat-private-1 | 10.0.2.0/24, eu-west-3a |
+| Subnet prive 2 | mini-chat-private-2 | 10.0.3.0/24, eu-west-3c |
+| Security Group ALB | mini-chat-alb-sg | Port 80 depuis Internet |
+| Security Group ECS | mini-chat-ecs-sg | Port 3000 depuis ALB |
+| Security Group RDS | mini-chat-db-sg | Port 3306 depuis ECS |
+| ALB | mini-chat-alb | Application, public, multi-AZ |
+| Target Group | mini-chat-backend-tg | Port 3000, health check GET / |
+| ECS Cluster | mini-chat-cluster | Fargate |
+| ECS Task Definition | mini-chat-backend | 0.25 vCPU, 512 MB RAM |
+| ECS Service | mini-chat-backend | desired_count = 1, rolling update |
+| RDS MySQL | mini-chat-db | db.t3.micro, 20 GB, subnet prive |
+| ECR | mini-chat-backend | Images Docker taguees par commit |
+| SSM | /mini-chat/db_password | SecureString chiffre |
+| SSM | /mini-chat/jwt_secret | SecureString chiffre |
+| CloudWatch | /ecs/mini-chat-backend | Logs 7 jours de retention |
+| IAM Role | mini-chat-ecs-execution-role | ECR pull + CloudWatch + SSM |
+| S3 | mini-chat-tfstate-babs235 | State Terraform chiffre |
+| DynamoDB | mini-chat-tflock | Verrou Terraform |
+
+### 6.3 Rolling update sans coupure
+
+1. Nouveau container demarre en parallele de l'ancien
+2. ALB envoie une requete `GET /` sur le nouveau container
+3. Si reponse 200 : trafic bascule, ancien container arrete
+4. Si pas de reponse : ancien container reste actif (rollback automatique)
+
+---
+
+## 7. SECURITE
+
+### 7.1 Gestion des secrets
+
+| Secret | Phase 1 (EC2) | Phase 2 (ECS Fargate) |
+|--------|---------------|----------------------|
+| DB_PASSWORD | Fichier .env en clair | SSM Parameter Store chiffre AES-256 |
+| JWT_SECRET | Fichier .env en clair | SSM Parameter Store chiffre AES-256 |
+| AWS credentials | ~/.aws/credentials | GitHub Secrets, jamais en clair |
+
+Les secrets ne sont jamais dans le code source, jamais dans les logs, jamais dans le state Terraform (marques `sensitive = true`).
+
+### 7.2 Protection des acces reseau
+
+- RDS inaccessible depuis Internet (subnet prive)
+- Containers ECS accessibles uniquement via ALB (port 3000 ferme depuis Internet)
+- Aucun port SSH ouvert (pas d'EC2, pas de SSH)
+- Acces IAM au principe du moindre privilege
+
+### 7.3 Protection applicative
+
+| Attaque | Protection | Fichier |
+|---------|-----------|---------|
+| SQL Injection | Requetes preparees mysql2 | `auth.js`, `messages.js` |
+| XSS | Echappement HTML | `messages.js` (escapeHtml) |
+| JWT Forging | Secret fort depuis SSM, expiration 1h | `auth.js`, `middleware/auth.js` |
+| CSRF | CORS configure, tokens JWT | `server.js` |
+
+---
+
+## 8. STATISTIQUES DE SERVICES — BC03
+
+Cette section repond a la competence BC03 : *Definir et mettre en place des statistiques de services*.
+
+### 8.1 Services surveilles
+
+L'architecture mini-chat est composee de quatre services critiques :
+
+| Service | Description |
 |---------|-------------|
-| Formulaire connexion | Username + Password |
-| Formulaire inscription | Toggle login/register |
-| Validation client | Champs requis, longueur min |
-| UX | Messages d'erreur, transitions fluides |
+| API Node.js (ECS) | Container principal qui traite toutes les requetes |
+| ALB | Point d'entree public, verifie la disponibilite du container |
+| RDS MySQL | Base de donnees persistante, en subnet prive |
+| Pipeline CI/CD | Deploiement automatique — echec = service non mis a jour |
 
-#### Page de Chat (`messages.html`)
+### 8.2 Metriques, indicateurs, KPI — distinctions
 
-| Élément | Description |
-|---------|-------------|
-| Header | Logo, nom utilisateur, bouton déconnexion |
-| Zone messages | Affichage bulles style Discord |
-| Input message | Champ texte + bouton envoi |
-| Auto-scroll | Scroll vers dernier message |
-| Refresh auto | Polling toutes les 3 secondes |
+| Terme | Definition | Exemple dans ce projet |
+|-------|-----------|----------------------|
+| **Metrique** | Mesure brute collectee automatiquement | 47 requetes HTTP recues, CPU a 12%, 3 messages envoyes |
+| **Indicateur** | Metrique interpretee pour suivre l'etat d'un service | Taux d'erreurs 5xx sur 24h, temps de reponse moyen |
+| **KPI** | Indicateur cle relie a un objectif de service | Disponibilite mensuelle 99%, p95 < 500 ms |
+| **SLA** | Engagement de niveau de service | Service accessible 99% du temps, restauration < 2h |
 
-### 2.3 Fonctionnalités Transversales
+### 8.3 Indicateurs retenus avec seuils et actions
 
-| Fonction | Implémentation |
-|----------|----------------|
-| Responsive design | CSS Grid/Flexbox, mobile-first |
-| Glassmorphism UI | Transparence + blur + gradients |
-| Avatars dynamiques | Initiales + couleurs par utilisateur |
-| Animations | Fade in, slide, hover effects |
+| Service | Indicateur | Outil / Source | Seuil | Action en cas d'alerte |
+|---------|-----------|---------------|-------|----------------------|
+| ALB | Disponibilite (health check `GET /`) | ALB Target Group (CloudWatch) | Indisponible > 1 min | Lire CloudWatch `/ecs/mini-chat-backend`, forcer redeploi ECS |
+| API | Taux d'erreurs HTTP 5xx | `/metrics` — `http_requests_total` | > 2% sur 5 min | Analyser les logs, rollback vers la revision precedente |
+| ECS | Nombre de redemarrages du container | CloudWatch ECS Logs | > 3 / heure | Identifier la cause (OOM, crash, schema DB) dans les logs |
+| API | CPU du container | CloudWatch — ECS CPU Utilization | > 80% pendant 10 min | Analyser la charge, envisager l'auto scaling ECS |
+| API | Utilisateurs actifs (fenetre 5 min) | `/metrics` — `active_users` | 0 apres activite connue | Verifier JWT, connexion base de donnees |
+
+### 8.4 KPI et objectifs de service (SLA)
+
+| KPI | Objectif cible | Indicateur associe |
+|-----|---------------|--------------------|
+| Disponibilite mensuelle | >= 99% | ALB health check + ECS task status |
+| Temps de reponse | p95 < 500 ms | ALB access logs + metriques `/metrics` |
+| Taux d'erreurs | < 2% HTTP 5xx sur 24h | `http_requests_total` par code HTTP |
+| Restauration apres incident | < 2 heures | Rolling update automatique ou redeploi manuel |
+
+Ces seuils sont justifies :
+- **99% de disponibilite** : standard minimal pour un service interne accessible 24h/24
+- **500 ms p95** : seuil perceptible pour un utilisateur — au-dela, l'experience se degrade
+- **2% d'erreurs 5xx** : taux acceptable pour absorber les erreurs transitoires sans impacter les utilisateurs
+- **2h de restauration** : correspond a la duree d'un redeploi manuel complet si le pipeline echoue
+
+### 8.5 Outils de supervision
+
+#### Production — AWS CloudWatch
+
+| Avantage | Detail |
+|----------|--------|
+| Integre nativement | Aucune infrastructure supplementaire a gerer |
+| Zero configuration | Les logs ECS sont envoyes automatiquement |
+| Securise | Pas de port supplementaire a ouvrir |
+| Economique | Inclus dans le free tier AWS |
+
+**Logs accessibles** : AWS Console → CloudWatch → Journaux → `/ecs/mini-chat-backend`
+
+Logs produits au demarrage confirmes :
+```
+Schema initialized
+Server started on port 3000
+```
+
+**Metriques CloudWatch disponibles** :
+- ECS CPUUtilization et MemoryUtilization (par service et par task)
+- ALB RequestCount, HTTPCode_ELB_5XX_Count, TargetResponseTime
+- RDS DatabaseConnections, FreeStorageSpace
+
+#### Developpement local — Prometheus + Grafana
+
+Prometheus et Grafana sont configures dans `docker/docker-compose.yml` pour le developpement local uniquement.
+
+Realise en local :
+- Dashboard avec requetes HTTP totales, utilisateurs actifs, taux d'erreurs
+- Alertes configurees avec envoi sur **Discord via webhook**
+- Regles d'alertes : CPU eleve, backend down, nombre d'utilisateurs
+
+**Metriques exposees par le backend sur `/metrics`** :
+
+| Metrique | Type | Description |
+|----------|------|-------------|
+| `http_requests_total` | Counter | Nombre total de requetes HTTP par code et route |
+| `active_users` | Gauge | Utilisateurs avec token JWT actif (fenetre 5 min) |
+| `messages_created_total` | Counter | Messages envoyes depuis le demarrage |
+| `process_cpu_user_seconds_total` | Counter | CPU consomme par le process Node.js |
+| `process_resident_memory_bytes` | Gauge | RAM utilisee par le process Node.js |
+
+### 8.6 Exemple d'incident reel et analyse
+
+**Symptome** : le container ECS demarrait puis s'arretait immediatement. Les logs CloudWatch montraient :
+
+```
+Schema init failed: connect ECONNREFUSED
+```
+
+**Cause identifiee** : le container tentait de joindre MySQL avant que RDS soit pret a accepter des connexions (demarrage a froid apres un delai).
+
+**Verification** :
+1. Logs CloudWatch → flux le plus recent → message `Schema init failed`
+2. ECS Console → Taches → code de sortie `1`
+3. RDS Console → etat `available` mais connexions initialement refusees
+
+**Correction appliquee** : ajout d'une gestion d'erreur non bloquante dans `initSchema()` — le serveur demarre meme si le schema echoue, et le pool MySQL gere la reconnexion automatiquement.
+
+**Lecon** : une metrique de "container restarts" dans CloudWatch aurait detecte ce comportement immediatement sans inspection manuelle.
+
+### 8.7 Rollback
+
+En cas de deploiement defaillant, le rolling update de l'ALB empeche le trafic de basculer vers le container defectueux (rollback automatique).
+
+Rollback manuel si necessaire :
+```bash
+aws ecs update-service \
+  --cluster mini-chat-cluster \
+  --service mini-chat-backend \
+  --task-definition mini-chat-backend:<numero-revision-precedente> \
+  --region eu-west-3
+```
+
+### 8.8 Limites actuelles et ameliorations prevues
+
+| Limite actuelle | Amelioration prevue |
+|-----------------|---------------------|
+| Pas d'alerte automatique si container tombe | CloudWatch Alarm sur ECS TaskCount = 0 |
+| Pas d'alerte sur erreurs 5xx | CloudWatch Alarm sur ALB HTTPCode_ELB_5XX_Count |
+| Pas d'alerte CPU | CloudWatch Alarm sur ECS CPUUtilization > 80% |
+| Un seul container (SPOF) | Auto Scaling ECS min 1 / max 3 |
+| HTTP uniquement | HTTPS avec ACM + domaine mini-chat.dev |
 
 ---
 
-## 3. ARCHITECTURE TECHNIQUE COMPLÈTE
+## 9. EVOLUTIONS PREVUES
 
-### 3.1 Architecture High-Level
+### 9.1 HTTPS avec nom de domaine (priorite haute)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                           CLIENT                                │
-│                      (Navigateur Web)                         │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │ HTTP/JSON
-┌───────────────────────────▼─────────────────────────────────────┐
-│                          AWS EC2                                │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │                    DOCKER ENGINE                        │   │
-│  │  ┌─────────────────────────────────────────────────────┐ │   │
-│  │  │              DOCKER COMPOSE STACK                   │ │   │
-│  │  │                                                     │ │   │
-│  │  │   ┌─────────────┐     ┌─────────────────────────┐  │ │   │
-│  │  │   │   NGINX     │────►│      BACKEND          │  │ │   │
-│  │  │   │   (option)  │     │   Node.js + Express   │  │ │   │
-│  │  │   └─────────────┘     │   Port 3000           │  │ │   │
-│  │  │                       └──────────┬────────────┘  │ │   │
-│  │  │                                  │                 │ │   │
-│  │  │   ┌─────────────┐              │                 │ │   │
-│  │  │   │   MySQL     │◄─────────────┘                 │ │   │
-│  │  │   │   Port 3306 │    (mysql2 driver)             │ │   │
-│  │  │   └─────────────┘                              │ │   │
-│  │  │                                               │ │   │
-│  │  │   ┌─────────────┐     ┌─────────────────────┐ │ │   │
-│  │  │   │ Prometheus  │────►│      Grafana        │ │ │   │
-│  │  │   │  Port 9090  │     │    Port 3001        │ │ │   │
-│  │  │   └─────────────┘     └─────────────────────┘ │ │   │
-│  │  │                                               │ │   │
-│  │  └─────────────────────────────────────────────────────┘ │   │
-│  └─────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                            │
-                    ┌───────▼────────┐
-                    │  AWS RDS       │ (Optionnel - pour prod)
-                    │  MySQL         │
-                    └────────────────┘
-```
+**Objectif** : securiser les communications et donner une URL professionnelle.
 
-### 3.2 Architecture Détaillée des Conteneurs
+**Domaine prevu** : `mini-chat.dev`
 
-| Conteneur | Base Image | Ports exposés | Rôle |
-|-----------|------------|---------------|------|
-| **backend** | `node:20-alpine` | 3000 | API REST + serveur frontend |
-| **db** | `mysql:8.0` | 3306 (interne) | Persistance données |
-| **prometheus** | `prom/prometheus:latest` | 9090 | Collecte métriques |
-| **grafana** | `grafana/grafana:latest` | 3001 | Visualisation dashboards |
-
-### 3.3 Flux de Données
-
-#### Inscription (Register Flow)
-```
-1. Client → POST /auth/register {username, password}
-2. Backend → Validation entrées (regex, longueur)
-3. Backend → bcrypt.hash(password, 10)
-4. Backend → INSERT INTO users (prepared statement)
-5. MySQL → Confirmation insertion
-6. Backend → Response 201 {message: "User created"}
-```
-
-#### Authentification (Login Flow)
-```
-1. Client → POST /auth/login {username, password}
-2. Backend → SELECT * FROM users WHERE username = ?
-3. Backend → bcrypt.compare(password, hash)
-4. Backend → jwt.sign({userId}, SECRET, {expiresIn: "1h"})
-5. Backend → Response 200 {token, username}
-6. Client → localStorage.setItem("token", token)
-```
-
-#### Envoi Message (Message Flow)
-```
-1. Client → POST /messages {message} + Header Authorization: token
-2. Middleware → jwt.verify(token, SECRET)
-3. Middleware → req.user = decoded
-4. Backend → Validation XSS (escapeHtml)
-5. Backend → INSERT INTO messages (user_id, message)
-6. MySQL → Confirmation
-7. Backend → Response 201
-```
-
----
-
-## 4. STACK TECHNIQUE DÉTAILLÉE
-
-### 4.1 Backend
-
-| Technologie | Version | Usage | Justification |
-|-------------|---------|-------|---------------|
-| **Node.js** | 20 LTS | Runtime | Performance, async I/O, ecosystem |
-| **Express.js** | ^4.18 | Framework API | Minimaliste, middleware-rich |
-| **mysql2** | ^3.9 | Driver DB | Promises, prepared statements |
-| **bcrypt** | ^5.1 | Hashing | Industry standard, salt auto |
-| **jsonwebtoken** | ^9.0 | Auth JWT | Stateless, scalable |
-| **cors** | ^2.8 | Cross-origin | Sécurité requêtes cross-domain |
-| **prom-client** | ^15.0 | Métriques | Native Prometheus support |
-
-### 4.2 Frontend
-
-| Technologie | Version | Usage | Justification |
-|-------------|---------|-------|---------------|
-| **HTML5** | - | Structure | Sémantique, accessible |
-| **CSS3** | - | Styling | Grid, Flexbox, Variables |
-| **JavaScript ES6+** | - | Logic | Async/await, modules |
-| **Font Awesome** | 6.4 | Icônes | Consistent, scalable icons |
-
-### 4.3 DevOps / Infrastructure
-
-| Technologie | Version | Usage | Justification |
-|-------------|---------|-------|---------------|
-| **Docker** | Latest | Conteneurisation | Isolation, portabilité |
-| **Docker Compose** | v2 | Orchestration | Multi-container local |
-| **Terraform** | ~> 5.0 | IaC AWS | Infra as code, reproductible |
-| **AWS EC2** | t3.micro | Compute | Free Tier, scalable |
-| **AWS RDS** | t3.micro | DB Managed | (Optionnel) Backup auto |
-| **GitHub Actions** | - | CI/CD | Intégration native Git |
-| **Prometheus** | Latest | Monitoring | Time-series metrics |
-| **Grafana** | Latest | Dashboards | Visualization pro |
-
----
-
-## 5. STRUCTURE DU CODE
-
-### 5.1 Arborescence Complète
+**Plan d'implementation** :
 
 ```
-mini-chat/
-├── .github/
-│   └── workflows/
-│       └── ci-cd.yml              # Pipeline CI/CD
-│
-├── backend/
-│   ├── frontend/
-│   │   ├── css/
-│   │   │   └── styles.css         # Design system complet
-│   │   ├── js/
-│   │   │   ├── auth.js            # Logique auth (sans IP hardcodée)
-│   │   │   ├── chat.js            # Logique chat (sans IP hardcodée)
-│   │   │   └── config.js          # Détection dynamique IP
-│   │   ├── index.html             # Page login/register
-│   │   └── messages.html          # Page chat
-│   │
-│   ├── src/
-│   │   ├── config/
-│   │   │   └── database.js        # Config MySQL
-│   │   ├── middleware/
-│   │   │   └── auth.js            # JWT middleware (SECRET fixe)
-│   │   ├── routes/
-│   │   │   ├── auth.js            # Routes auth (SECRET fixe)
-│   │   │   └── messages.js        # Routes messages + XSS protection
-│   │   └── utils/
-│   │       └── validators.js      # (optionnel) Validation helpers
-│   │
-│   ├── dockerfile.backend          # Image Node.js optimisée
-│   ├── package.json              # Dépendances Node
-│   └── server.js                 # Point d'entrée Express
-│
-├── database/
-│   └── init.sql                  # Schema DB + tables
-│
-├── docker/
-│   ├── docker-compose.yml        # Stack 4 services
-│   └── prometheus.yml            # Config monitoring
-│
-├── docs/
-│   └── architecture.png          # (optionnel) Diagramme
-│
-├── scripts/
-│   ├── backup-mysql.sh          # Backup de la base de données MySQL
-│   ├── deploy-with-backup.sh    # Déploiement avec backup automatique
-│   ├── deploy.sh                # Script déploiement rapide
-│   └── aws-deploy.sh            # Déploiement Terraform + Docker
-│
-├── terraform/
-│   ├── main.tf                   # Resources AWS (EC2, RDS, VPC)
-│   ├── variables.tf              # Variables Terraform
-│   ├── outputs.tf                # IPs en sortie
-│   ├── provider.tf               # Config AWS provider
-│   └── user-data.sh              # Script init EC2
-│
-├── .gitignore                 # Exclusions (node_modules, .env, clés SSH)
-├── CAHIER_DES_CHARGES.md      # Ce document
-├── GUIDE_DEPLOIEMENT.md       # Procédures ops
-├── PROMPT_CANVA.md            # Support présentation
-└── README.md                  # Vue d'ensemble projet
+1. Achat du domaine via Route 53 (ou transfert depuis un autre registrar)
+2. Creation certificat SSL dans AWS Certificate Manager (gratuit)
+3. Validation du domaine (enregistrement DNS CNAME automatique)
+4. Ajout listener HTTPS (port 443) sur l'ALB dans Terraform
+5. Redirection HTTP -> HTTPS sur l'ALB (port 80 redirige vers 443)
+6. Creation enregistrement DNS Route 53 pointant vers l'ALB
 ```
 
-### 5.2 Description des Fichiers Clés
+Fichiers Terraform a modifier : `terraform/ecs.tf` (ajout listener 443, certificat ACM), `terraform/main.tf` (port 443 dans ALB SG), nouveau `terraform/dns.tf` (Route 53).
 
-#### Backend
+**Resultat** : `https://mini-chat.dev` accessible depuis n'importe quel navigateur avec cadenas SSL.
 
-| Fichier | Lignes | Description technique |
-|---------|--------|----------------------|
-| `server.js` | ~50 | Setup Express, middlewares CORS, routes, démarrage serveur 0.0.0.0:3000 |
-| `src/routes/auth.js` | ~100 | Register/login, bcrypt, JWT sign avec SECRET statique, validation entrées |
-| `src/routes/messages.js` | ~80 | GET/POST messages, middleware verifyToken, escapeHtml XSS protection |
-| `src/middleware/auth.js` | ~30 | JWT verify, SECRET identique à auth.js, req.user attachment |
-| `src/config/database.js` | ~20 | Pool MySQL, host: 'db' (Docker network), credentials |
+### 9.2 ECR Lifecycle Policy
 
-#### Frontend
+Supprimer automatiquement les anciennes images Docker dans ECR pour maitriser les couts.
 
-| Fichier | Lignes | Description technique |
-|---------|--------|----------------------|
-| `js/config.js` | ~15 | Détection dynamique IP (localhost vs production) |
-| `js/auth.js` | ~70 | Fetch API register/login, localStorage token, redirections |
-| `js/chat.js` | ~170 | Load messages, send message, polling 3s, animations, avatars |
-| `css/styles.css` | ~500 | Variables CSS, glassmorphism, responsive, animations keyframes |
-
-#### Infrastructure
-
-| Fichier | Lignes | Description technique |
-|---------|--------|----------------------|
-| `dockerfile.backend` | ~25 | Multi-stage build possible, nodemon dev, expose 3000 |
-| `docker-compose.yml` | ~80 | 4 services, networks, volumes, healthchecks, depends_on conditionnel |
-| `terraform/main.tf` | ~200 | VPC, subnets, security groups, EC2 t3.micro, RDS optionnel, user-data |
-| `terraform/outputs.tf` | ~30 | ec2_public_ip, rds_endpoint, urls |
-
----
-
-## 6. EXIGENCES NON-FONCTIONNELLES
-
-### 6.1 Performance
-
-| Métrique | Objectif | Mesure |
-|----------|----------|--------|
-| Temps réponse API | < 200ms | moyenne sur 100 requêtes |
-| Temps chargement page | < 2s | Lighthouse performance |
-| Capacité simultanée | 100 users | load test (artillery/jmeter) |
-| Uptime | 99.9% | monitoring sur 30 jours |
-
-### 6.2 Scalabilité
-
-| Aspect | Stratégie |
-|--------|-----------|
-| Horizontal | Docker Compose → Kubernetes (futur) |
-| Vertical | t3.micro → t3.small → t3.medium |
-| DB | RDS read replicas (si charge élevée) |
-| Cache | Redis (futur) pour sessions/messages |
-
-### 6.3 Disponibilité
-
-| Composant | Stratégie haute dispo |
-|-----------|----------------------|
-| EC2 | Auto Scaling Group (min 1, max 2) |
-| RDS | Multi-AZ deployment |
-| Données | Backup automatique quotidien |
-
----
-
-## 7. SÉCURITÉ
-
-### 7.1 Authentification et Autorisation
-
-| Couche | Implémentation |
-|--------|----------------|
-| Hashing mots de passe | bcrypt avec salt 10 rounds |
-| Session | JWT stateless, expiration 1h |
-| Transmission | HTTPS (à implémenter avec certbot/Let's Encrypt) |
-| Storage client | localStorage (token), httpOnly cookie recommandé futur |
-
-### 7.2 Protection Contre les Attaques Courantes
-
-| Attaque | Protection | Fichier concerné |
-|---------|-----------|------------------|
-| **SQL Injection** | Requêtes préparées mysql2 | `auth.js`, `messages.js` |
-| **XSS** | Échappement HTML + validation entrée | `messages.js` (escapeHtml) |
-| **JWT Forging** | Secret complexe statique, pas de Date.now() | `auth.js`, `middleware/auth.js` |
-| **Brute Force** | (À implémenter) Rate limiting | Futur: middleware rate-limit |
-| **CSRF** | CORS configuré, tokens JWT | `server.js` |
-
-### 7.3 Échappement XSS (Implémentation)
-
-```javascript
-// backend/src/routes/messages.js
-function escapeHtml(text) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+```json
+{
+  "rules": [{
+    "rulePriority": 1,
+    "description": "Keep last 10 images",
+    "selection": { "tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 10 },
+    "action": { "type": "expire" }
+  }]
 }
 ```
 
-### 7.4 Gestion des Secrets
+### 9.3 CloudWatch Alarms
 
-| Secret | Localisation | Méthode |
-|--------|--------------|---------|
-| JWT_SECRET | `auth.js`, `middleware/auth.js` | Variable d'environnement (process.env.JWT_SECRET) |
-| MySQL password | `docker-compose.yml`, `database.js` | Variables d'environnement (process.env.DB_PASSWORD) |
-| DB_HOST, DB_USER, DB_NAME | `database.js` | Variables d'environnement avec valeurs par défaut |
-| AWS credentials | - | ~/.aws/credentials (local), IAM roles (EC2) |
-| SSH keys | ~/.ssh/ | Jamais dans Git (.gitignore) |
+Alertes automatiques par email si :
+- CPU ECS > 80% pendant 10 minutes
+- Container passe en etat STOPPED (TaskCount = 0)
+- Nombre d'erreurs HTTP 5xx > seuil defini
 
-**Fichier .env** (non versionné) :
-```
-MYSQL_ROOT_PASSWORD=votre_mot_de_passe
-JWT_SECRET=votre_secret_jwt
-```
+### 9.4 Auto Scaling ECS
 
-**docker-compose.yml** injecte ces variables dans les containers via `${MYSQL_ROOT_PASSWORD}` et `${JWT_SECRET}`.
-
----
-
-## 8. MONITORING ET OBSERVABILITÉ
-
-### 8.1 Métriques Collectées (Prometheus)
-
-| Métrique | Type | Source |
-|----------|------|--------|
-| `http_requests_total` | Counter | Backend Express |
-| `http_request_duration_seconds` | Histogram | Backend Express |
-| `container_cpu_usage` | Gauge | cAdvisor (optionnel) |
-| `container_memory_usage` | Gauge | cAdvisor (optionnel) |
-| `mysql_connections` | Gauge | MySQL exporter (optionnel) |
-
-### 8.2 Dashboards Grafana
-
-| Dashboard | Panels | Description |
-|-----------|--------|-------------|
-| **Overview** | Requests/sec, Error rate, Latency | Santé générale application |
-| **Containers** | CPU, Memory, Network | Ressources Docker |
-| **Database** | Connections, Queries, Slow queries | Performance MySQL |
-
-### 8.3 Alertes (À configurer)
-
-| Condition | Seuil | Action |
-|-----------|-------|--------|
-| Error rate > 5% | 5 minutes | Email/Slack |
-| Response time > 500ms | 10 minutes | Email/Slack |
-| Container down | Immediate | PagerDuty (futur) |
-
----
-
-## 9. SCRIPTS DE BACKUP
-
-### 9.1 Script de Backup MySQL
-
-**Fichier** : `scripts/backup-mysql.sh`
-
-**Objectif** : Sauvegarder la base de données MySQL de manière automatisée.
-
-**Usage** :
-```bash
-./scripts/backup-mysql.sh <IP_AWS> <CHEF_CLE_SSH>
-```
-
-**Fonctionnalités** :
-- Exécution de `mysqldump` via Docker
-- Compression du backup (gzip)
-- Téléchargement du backup localement
-- Nettoyage des vieux backups (garde les 7 derniers)
-
-**Restauration** :
-```bash
-# Décompresser et restaurer
-gunzip mini_chat_backup_20260423_120000.sql.gz
-docker exec -i docker_db_1 mysql -u root -p$(grep MYSQL_ROOT_PASSWORD /home/ubuntu/mini-chat/docker/.env | cut -d'=' -f2) mini_chat < mini_chat_backup_20260423_120000.sql
-```
-
-### 9.2 Script de Déploiement avec Backup
-
-**Fichier** : `scripts/deploy-with-backup.sh`
-
-**Objectif** : Déployer l'application avec un backup automatique avant chaque déploiement.
-
-**Usage** :
-```bash
-./scripts/deploy-with-backup.sh <IP_AWS> <CHEF_CLE_SSH>
-```
-
-**Fonctionnalités** :
-- Backup automatique de la base de données
-- Git pull pour récupérer les dernières modifications
-- Redémarrage des containers Docker
-- Vérification du statut des containers
+Augmenter automatiquement le nombre de containers selon la charge :
+- Minimum : 1 container
+- Maximum : 3 containers
+- Declencheur : CPU > 70% ou memoire > 80%
 
 ---
 
 ## 10. PLANNING ET LIVRABLES
 
-### 10.1 Planning Détaillé
+### 10.1 Phase 0 — Developpement local (Mars 2026)
 
-| Phase | Dates | Durée | Activités | Livrables | Statut |
-|-------|-------|-------|-----------|-----------|--------|
-| **P1** | 01-07 Avril | 1 semaine | Développement backend/frontend | Code fonctionnel | ✅ |
-| **P2** | 08-10 Avril | 3 jours | Docker + Docker Compose | Dockerfile, docker-compose.yml | ✅ |
-| **P3** | 11-12 Avril | 2 jours | Terraform AWS | Infra as Code déployable | ✅ |
-| **P4** | 13-14 Avril | 2 jours | CI/CD GitHub Actions | Pipeline (tentatives SSH) | ✅ |
-| **P5** | 15 Avril | 1 jour | Monitoring Prometheus/Grafana | Métriques + dashboards | ✅ |
-| **P6** | 16 Avril | 1 jour | Documentation + Corrections | CDC, Guide déploiement | ✅ |
+| Semaine | Travaux realises |
+|---------|-----------------|
+| Semaine 1 | Cahier des charges initial, architecture, choix techniques |
+| Semaine 1 | Developpement backend minimal : Express, route `/`, MySQL |
+| Semaine 2 | Authentification : bcrypt, JWT, routes `/auth/register` et `/auth/login` |
+| Semaine 2 | Tests API avec Thunder Client (VS Code) |
+| Semaine 3 | Docker Compose : backend + MySQL + Prometheus + Grafana |
+| Semaine 3 | Script d'automatisation `start.bat` pour lancement local |
+| Semaine 3 | Alertes Discord via webhook Prometheus Alertmanager |
+| Semaine 3 | Frontend HTML/CSS/JS (connexion, messages, design glassmorphism) |
 
-### 10.2 Livrables Finaux
+### 10.2 Phase 1 — Infrastructure AWS EC2 (Avril 2026)
 
-| Livrable | Format | Localisation | Statut |
-|----------|--------|--------------|--------|
-| **Code source** | Git | GitHub (babs235/mini-chat) | ✅ Public |
-| **Cahier des charges** | Markdown | `CAHIER_DES_CHARGES.md` | ✅ Complet |
-| **Guide de déploiement** | Markdown | `GUIDE_DEPLOIEMENT.md` | ✅ Complet |
-| **Documentation technique** | Markdown | `README.md` + ce CDC | ✅ |
-| **Infrastructure as Code** | Terraform | `terraform/` | ✅ |
-| **Conteneurisation** | Docker | `docker/`, `dockerfile.backend` | ✅ |
-| **CI/CD Pipeline** | YAML | `.github/workflows/ci-cd.yml` | ✅ (SSH à debug) |
-| **Application déployée** | URL | http://13.38.35.35:3000 | ✅ Online |
-| **Monitoring** | URL | http://13.38.35.35:9090, :3001 | ✅ Online |
+| Semaine | Travaux realises |
+|---------|-----------------|
+| Semaine 4 | Terraform v1 : VPC + EC2 + RDS + Security Groups |
+| Semaine 4 | Pipeline CI/CD GitHub Actions (premiere version) |
+| Semaine 4 | Dockerfile multi-stage Alpine (image 6x plus legere) |
+| Semaine 4 | Documentation initiale |
 
-### 10.3 Présentation Jury
+### 10.3 Phase 2 — ECS Fargate (Mai 2026)
 
-| Support | Format | Description |
-|---------|--------|-------------|
-| **PowerPoint** | .pptx | 15 slides, parcours d'apprentissage |
-| **Démo live** | URL | Connexion à l'app, envoi message |
-| **Code review** | VS Code | Explication architecture, sécurité |
+| Date | Travaux realises |
+|------|-----------------|
+| Mai 2026 | Migration EC2 -> ECS Fargate (suppression SSH, user_data) |
+| Mai 2026 | Ajout ECR avec pipeline build -> push automatise |
+| Mai 2026 | ALB avec rolling update et health checks |
+| Mai 2026 | SSM Parameter Store pour tous les secrets |
+| Mai 2026 | CloudWatch pour les logs de production |
+| Mai 2026 | Schema auto-cree au demarrage (plus de setup manuel) |
+| Mai 2026 | Resolution des conflits Terraform (moved blocks, state rm + import) |
+| Mai 2026 | Mise a jour complete documentation |
 
----
+### 10.4 Phase 3 — Prevue
 
-## 11. CONTRAINTES ET RISQUES
+| Element | Statut |
+|---------|--------|
+| HTTPS avec mini-chat.dev | Planifie |
+| ECR Lifecycle Policy | Planifie |
+| CloudWatch Alarms | Planifie |
+| Auto Scaling ECS | Planifie |
 
-### 11.1 Contraintes Techniques
+### 10.5 Livrables
 
-| Contrainte | Impact | Mitigation |
-|------------|--------|------------|
-| AWS Free Tier | Limites CPU/mémoire | t3.micro, monitoring usage |
-| Pas de HTTPS | Sécurité réduite | Let's Encrypt (futur) |
-| Polling 3s | Charge réseau | WebSocket (futur v2) |
-| Single EC2 | Point unique de panne | Auto Scaling Group (futur) |
-
-### 11.2 Contraintes Organisationnelles
-
-| Contrainte | Description |
-|------------|-------------|
-| Solo développeur | Toutes les compétences sur 1 personne |
-| Deadline fixe | 16 Avril 2026, pas de report possible |
-| Budget nul | AWS Free Tier uniquement |
-| Formation en parallèle | D'autres blocs REAC simultanés |
-
-### 11.3 Risques Identifiés
-
-| Risque | Probabilité | Impact | Mitigation |
-|--------|-------------|--------|------------|
-| Dépassement Free Tier | Moyenne | Élevé | Monitoring billing AWS |
-| Perte clé SSH | Faible | Critique | Backup clé, user-data script |
-| Corruption DB | Faible | Élevé | Volumes Docker persistants |
-| Indisponibilité jury | Faible | Élevé | Screenshot backup, README détaillé |
-
-### 11.4 Leçons Apprises (Retour d'expérience)
-
-| Problème | Cause racine | Solution | Prévention future |
-|----------|--------------|----------|-------------------|
-| `401 Unauthorized` | JWT secret différent auth.js vs middleware | Unification SECRET statique | Checklist pre-commit |
-| `undefined` sur register | Response parsing avant check status | Vérification res.ok avant .json() | Tests automatisés API |
-| Container unhealthy | MySQL pas prêt, pas de wait | Healthcheck + depends_on conditionnel | docker-compose config validation |
-| IP hardcodée | Changement IP AWS au reboot | config.js détection dynamique | Variable d'environnement REACT_APP_API_URL |
-| SSH timeout GitHub Actions | Secrets mal configurés | Déploiement manuel documenté | Tests CI/CD sur branche dev d'abord |
+| Livrable | Localisation | Statut |
+|----------|--------------|--------|
+| Code source | github.com/babs235/mini-chat | Disponible |
+| Cahier des charges | `CAHIER_DES_CHARGES_COMPLET.md` | Complet |
+| Guide de deploiement | `GUIDE_DEPLOIEMENT.md` | Complet |
+| Infrastructure as Code | `terraform/` | Deploye |
+| Pipeline CI/CD | `.github/workflows/ci-cd.yml` | Operationnel |
+| Application en production | URL ALB eu-west-3 | En ligne |
+| Monitoring production | CloudWatch `/ecs/mini-chat-backend` | Operationnel |
+| Monitoring local | Prometheus + Grafana + Discord | Operationnel |
 
 ---
 
-## ANNEXES
+## 11. RETOUR D'EXPERIENCE
 
-### A. Commandes de Développement Rapide
+### 11.1 Problemes rencontres et solutions
 
-```bash
-# Local development
-npm install
-npm start
+| Probleme | Cause | Solution |
+|----------|-------|----------|
+| Containers ne demarraient pas sur EC2 | user_data asynchrone, .env avec valeurs bidon | Migration vers ECS Fargate |
+| Image ECR jamais utilisee | docker-compose.yml buildait depuis le code source | Task Definition ECS pointe directement vers ECR |
+| Terraform renommage de ressources | Changement de noms -> destroy + recreate | Blocs `moved` dans Terraform |
+| Security group non modifiable | Description immuable dans AWS | Restaurer la description originale |
+| DB Subnet Group conflit de state | Double entree en state Terraform | `terraform state rm` + `terraform import` dans le pipeline |
+| Quotas IAM depasses | 10 politiques managees maximum par utilisateur | Suppression des doublons et politiques inutiles |
+| Schema DB non initialise sur RDS | init.sql monte dans Docker local uniquement | Fonction `initSchema()` au demarrage du backend |
+| Secrets en minuscules dans pipeline | GitHub Secrets est sensible a la casse | Corriger `jwt_secret` -> `JWT_SECRET` |
 
-# Docker local
-cd docker
-docker-compose up -d --build
+### 11.2 Comparaison architectures Phase 1 vs Phase 2
 
-# AWS deployment
-cd terraform
-terraform apply -auto-approve
-ssh -i ~/.ssh/mini-chat-key.pem ubuntu@$(terraform output -raw ec2_public_ip)
+| Critere | Phase 1 (EC2) | Phase 2 (ECS Fargate) |
+|---------|---------------|----------------------|
+| Deploiement | SSH + docker compose | Pipeline automatique |
+| Mise a jour code | Connexion manuelle | Push Git suffit |
+| Secrets | .env en clair | SSM chiffre |
+| Redemarrage si crash | Manuel | Automatique (ECS Service) |
+| SSH requis | Oui | Non |
+| Image Docker en production | Buildee sur EC2 | Depuis ECR (buildee en CI) |
+| Rolling update | Non | Oui (ALB + ECS) |
+| Coupure au deploiement | Oui (~30s) | Non (zero downtime) |
 
-# Logs monitoring
-docker-compose logs -f backend
-docker-compose logs -f db
+### 11.3 Competences ASD mobilisees
+
+| Competence ASD | Comment elle est couverte |
+|----------------|--------------------------|
+| Automatiser le deploiement d'une infrastructure | Terraform + GitHub Actions : push = deploiement complet |
+| Gerer des containers | Docker multi-stage, ECR, ECS Fargate, Docker Compose local |
+| Exploiter une solution de supervision (BC03) | CloudWatch (prod), Prometheus/Grafana/Discord (local), metriques `/metrics` |
+| Securiser l'infrastructure | SSM secrets, pas de SSH, moindre privilege, XSS + SQL Injection |
+| Infrastructure as Code | Terraform (modules, state S3, moved blocks, import, variables) |
+| CI/CD | GitHub Actions 3 jobs, secrets, tracabilite par hash de commit |
+| Repondre a un incident | Rolling update, rollback manuel, analyse CloudWatch |
+
+---
+
+## STRUCTURE DU PROJET
+
+```
+mini-chat/
+├── .github/workflows/
+│   └── ci-cd.yml              # Pipeline : tests -> ECR -> Terraform -> ECS
+├── backend/
+│   ├── dockerfile.backend     # Multi-stage Alpine
+│   ├── server.js              # Entree Express + metriques
+│   └── src/
+│       ├── config/database.js # Pool MySQL + migration auto au demarrage
+│       ├── middleware/
+│       │   ├── auth.js        # Verification JWT
+│       │   └── metrics.js     # Metriques Prometheus (http, users, messages)
+│       └── routes/
+│           ├── auth.js        # Register / Login
+│           └── messages.js    # GET / POST messages
+├── database/
+│   └── init.sql               # Schema SQL (reference)
+├── docker/
+│   ├── docker-compose.yml     # Local uniquement (+ Prometheus + Grafana)
+│   └── .env.example           # Template variables locales
+└── terraform/
+    ├── main.tf                # VPC, subnets, security groups, RDS
+    ├── ecs.tf                 # IAM, SSM, CloudWatch, ECS, ALB
+    ├── variables.tf           # Variables
+    ├── outputs.tf             # Outputs
+    ├── moved.tf               # Historique renommages
+    └── provider.tf            # Provider AWS + state S3
 ```
 
-### B. URLs de l'Application (16 Avril 2026)
-
-| Service | URL | Identifiants |
-|---------|-----|--------------|
-| Application | http://13.38.35.35:3000 | Créer compte test |
-| Prometheus | http://13.38.35.35:9090 | - |
-| Grafana | http://13.38.35.35:3001 | admin/admin |
-
-### C. Checklist de Validation Présentation
-
-- [ ] Application accessible (http://13.38.35.35:3000)
-- [ ] Inscription fonctionnelle
-- [ ] Connexion fonctionnelle
-- [ ] Envoi message fonctionnel
-- [ ] Refresh auto messages (3s)
-- [ ] Prometheus accessible
-- [ ] Grafana accessible
-- [ ] Code review JWT (secret statique)
-- [ ] Code review XSS (escapeHtml)
-- [ ] Terraform plan sans erreur
-- [ ] Docker-compose ps tous containers UP
-
 ---
 
-## VALIDATION
-
-**Document rédigé par** : Babikir Ibrahim  
-**Formation** : Administrateur DevOps  
-**Date** : 16 Avril 2026  
-**Version** : 2.0 - Complet  
-**Review** : Conforme aux attentes REAC Bloc 2
-
----
-
-*Ce cahier des charges reflète l'état complet du projet Mini-Chat à la date de rendu, incluant l'architecture technique, le code développé, les problématiques rencontrées et les solutions implémentées.*
+**Document redige par** : Babikir Ibrahim
+**Formation** : Administrateur Systemes et DevOps (ASD)
+**Version** : 4.0 — Architecture ECS Fargate
+**Date** : Mai 2026

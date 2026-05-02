@@ -1,6 +1,5 @@
 const mysql = require("mysql2");
 
-// POOL de connexions - évite les déconnexions par inactivité
 const pool = mysql.createPool({
   host: process.env.DB_HOST || "db",
   user: process.env.DB_USER || "root",
@@ -11,19 +10,16 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-// FIX CRITIQUE: Gestion des erreurs sans crash
-pool.on('error', (err) => {
-  if (err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 4031) {
-    console.log(' MySQL déconnecté par inactivité - le pool va recréer une connexion');
-    // Le pool recrée automatiquement une nouvelle connexion pour la prochaine requête
+pool.on("error", (err) => {
+  if (err.code === "PROTOCOL_CONNECTION_LOST" || err.code === 4031) {
+    console.log("MySQL disconnected - pool will reconnect automatically");
     return;
   }
-  console.error('💥 Erreur MySQL Pool:', err.message);
+  console.error("MySQL pool error:", err.message);
 });
 
 const db = pool.promise();
 
-// Crée les tables si elles n'existent pas encore (migration au démarrage)
 async function initSchema() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS users (
@@ -42,9 +38,9 @@ async function initSchema() {
       FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
-  console.log("✅ Schema OK");
+  console.log("Schema initialized");
 }
 
-initSchema().catch((err) => console.error("❌ Schema init:", err.message));
+initSchema().catch((err) => console.error("Schema init failed:", err.message));
 
 module.exports = db;

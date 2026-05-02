@@ -17,7 +17,7 @@ app.use(express.json());
 //  compter les requêtes
 app.use(metricsMiddleware);
 
-// 🔥 Tracker les users actifs sur les routes protégées (avant auth)
+// Track active users on protected routes
 app.use(trackActiveUsers);
 
 // routes API

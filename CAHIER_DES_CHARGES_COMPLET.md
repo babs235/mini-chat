@@ -400,6 +400,8 @@ Les secrets ne sont jamais dans le code source, jamais dans les logs, jamais dan
 
 Cette section repond a la competence BC03 : *Definir et mettre en place des statistiques de services*.
 
+> **Phrase cle (oral)** : "J'ai choisi ces indicateurs parce qu'ils permettent de verifier la disponibilite, la performance et la capacite de mon service. J'ai defini des seuils simples pour declencher une alerte avant que l'utilisateur soit fortement impacte."
+
 ### 8.1 Services surveilles
 
 L'architecture mini-chat est composee de quatre services critiques :
@@ -424,11 +426,12 @@ L'architecture mini-chat est composee de quatre services critiques :
 
 | Service | Indicateur | Outil / Source | Seuil | Action en cas d'alerte |
 |---------|-----------|---------------|-------|----------------------|
-| ALB | Disponibilite (health check `GET /`) | ALB Target Group (CloudWatch) | Indisponible > 1 min | Lire CloudWatch `/ecs/mini-chat-backend`, forcer redeploi ECS |
+| ALB | Disponibilite (health check `GET /`) | ALB Target Group — CloudWatch | Indisponible > 1 min | Lire CloudWatch `/ecs/mini-chat-backend`, forcer redeploi ECS |
 | API | Taux d'erreurs HTTP 5xx | `/metrics` — `http_requests_total` | > 2% sur 5 min | Analyser les logs, rollback vers la revision precedente |
-| ECS | Nombre de redemarrages du container | CloudWatch ECS Logs | > 3 / heure | Identifier la cause (OOM, crash, schema DB) dans les logs |
-| API | CPU du container | CloudWatch — ECS CPU Utilization | > 80% pendant 10 min | Analyser la charge, envisager l'auto scaling ECS |
-| API | Utilisateurs actifs (fenetre 5 min) | `/metrics` — `active_users` | 0 apres activite connue | Verifier JWT, connexion base de donnees |
+| Container ECS | Nombre de redemarrages | CloudWatch ECS Logs | > 3 / heure | Lire les logs, verifier OOM ou crash au demarrage |
+| Container ECS | CPU utilise | CloudWatch — ECS CPUUtilization | > 80% pendant 10 min | Analyser la charge, envisager l'auto scaling |
+| RDS MySQL | Espace disque libre | CloudWatch — RDS FreeStorageSpace | < 2 Go restants (sur 20 Go) | Purger les vieux messages, augmenter le volume RDS |
+| API | Utilisateurs actifs (fenetre 5 min) | `/metrics` — `active_users` | 0 apres activite connue | Verifier JWT, tester la connexion a la base de donnees |
 
 ### 8.4 KPI et objectifs de service (SLA)
 
@@ -529,6 +532,8 @@ aws ecs update-service \
 | Pas d'alerte CPU | CloudWatch Alarm sur ECS CPUUtilization > 80% |
 | Un seul container (SPOF) | Auto Scaling ECS min 1 / max 3 |
 | HTTP uniquement | HTTPS avec ACM + domaine mini-chat.dev |
+
+> **Pour le PowerPoint** : ajouter obligatoirement des captures d'ecran reelles — CloudWatch (groupe de journaux `/ecs/mini-chat-backend`) et/ou dashboard Grafana local. Le jury attend des preuves visuelles que la supervision fonctionne.
 
 ---
 

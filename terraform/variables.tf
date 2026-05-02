@@ -1,36 +1,32 @@
 # ============================================================
-# variables.tf - "Quelles sont les options ?"
+# variables.tf — Paramètres de l'infrastructure
 # ============================================================
-# Ce fichier définit les variables utilisées dans main.tf
-# Avantage : on peut changer les valeurs sans modifier le code
-# Les vraies valeurs sont dans terraform.tfvars (pas sur GitHub)
+# Règle : les valeurs SENSIBLES n'ont pas de default.
+# Elles arrivent exclusivement via GitHub Secrets (TF_VAR_*).
 # ============================================================
 
-# Région AWS = dans quel data center on construit
 variable "aws_region" {
-  description = "Région AWS où déployer l'infrastructure"
+  description = "Région AWS cible"
   type        = string
-  default     = "eu-west-3" # Paris
+  default     = "eu-west-3"
 }
 
-# Mot de passe de la base de données RDS
-#  SENSIBLE = ne jamais afficher dans les logs
 variable "db_password" {
-  description = "Mot de passe RDS MySQL"
+  description = "Mot de passe RDS MySQL — via GitHub Secret TF_VAR_db_password"
   type        = string
-  sensitive   = true # Terraform masquera cette valeur dans les logs
+  sensitive   = true
 }
 
-# Nom de la clé SSH (créée sur AWS Console)
-variable "key_name" {
-  description = "Nom de la clé SSH EC2"
+variable "jwt_secret" {
+  description = "Clé secrète JWT — via GitHub Secret TF_VAR_jwt_secret"
   type        = string
+  sensitive   = true
 }
 
-# IP publique de l'admin (pour restreindre l'accès SSH)
-#  Seul toi peux te connecter en SSH
-variable "admin_ip" {
-  description = "IP publique de l'administrateur pour SSH"
+# En CI/CD : TF_VAR_image_tag=${{ github.sha }}
+# En local  : default "latest" pour terraform plan/apply manuel
+variable "image_tag" {
+  description = "Tag de l'image Docker dans ECR"
   type        = string
-  default     = "0.0.0.0/0" # Par défaut : tout le monde (À REMPLACER par ton IP/32)
+  default     = "latest"
 }

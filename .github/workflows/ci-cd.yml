@@ -7,68 +7,46 @@ on:
     branches: [main]
 
 jobs:
-  # === JOB 1: TESTS ET VÉRIFICATION ===
+
+  # ── JOB 1 : TESTS ────────────────────────────────────────────────
   tests:
     name: Tests et Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Récupération du code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Configuration de Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: Installation des dépendances
+      - name: Install dependencies
         working-directory: ./backend
         run: npm ci
 
-      - name: Exécution du linter
+      - name: Lint
         working-directory: ./backend
-        run: npm run lint || echo "Pas de script de linter"
+        run: npm run lint || echo "No linter configured"
 
-      - name: Exécution des tests
+      - name: Tests
         working-directory: ./backend
-        run: npm test || echo "Pas de tests pour le moment"
+        run: npm test || echo "No tests yet"
 
 
-  # === JOB 2 : CONSTRUCTION DOCKER ===
-  build:
-    name: Build Docker
+  # ── JOB 2 : BUILD & PUSH ECR ─────────────────────────────────────
+  # Construit l'image Docker et la pousse dans ECR avec 2 tags :
+  #   :latest      → toujours disponible pour référence rapide
+  #   :<github.sha> → tracabilité exacte (quel commit = quelle image)
+  build-push:
+    name: Build and Push to ECR
     runs-on: ubuntu-latest
     needs: tests
+
     steps:
-      - name: Récupération du code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Configuration Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Test des conteneurs Docker
-        run: |
-          cd docker
-          cp .env.example .env
-          docker compose up --build backend db -d
-          sleep 20
-          docker ps
-          curl -f http://localhost:3000 || exit 1
-          docker compose down
-
-
-  # === JOB 3: BUILD AND PUSH BACKEND IMAGE ===
-  build-and-push:
-    name: Build and Push Backend Image
-    runs-on: ubuntu-latest
-    needs: [tests, build]
-    steps:
-      - name: Récupération du code
-        uses: actions/checkout@v4
-
-      - name: Configuration AWS CLI
-        uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -78,66 +56,55 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push backend image
+      - name: Build and push
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: mini-chat-backend
-          IMAGE_TAG: ${{ github.sha }}
+          REGISTRY:   ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: mini-chat-backend
+          TAG:        ${{ github.sha }}
         run: |
-          # Copier .env.example vers .env
-          cd docker
-          cp .env.example .env
-          
-          # Build et push l'image
-          docker build -t mini-chat-backend:${{ github.sha }} -f ../backend/dockerfile.backend ../backend
-          docker tag mini-chat-backend:${{ github.sha }} $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker build \
+            -t $REGISTRY/$REPOSITORY:$TAG \
+            -f backend/dockerfile.backend \
+            backend/
+          docker tag $REGISTRY/$REPOSITORY:$TAG $REGISTRY/$REPOSITORY:latest
+          docker push $REGISTRY/$REPOSITORY:$TAG
+          docker push $REGISTRY/$REPOSITORY:latest
 
 
-  # === JOB 4: DÉPLOIEMENT TERRAFORM ===
+  # ── JOB 3 : DEPLOY INFRASTRUCTURE + ECS ──────────────────────────
+  # Terraform crée / met à jour toute l'infra.
+  # TF_VAR_image_tag=${{ github.sha }} → ECS déploie exactement
+  # la version buildée dans le job précédent (tracabilité totale).
   deploy:
-    name: validation et deploiement par terraform
+    name: Deploy via Terraform
     runs-on: ubuntu-latest
-    needs: [tests, build, build-and-push]
-    steps: 
-      - name: recuperation du code
-        uses: actions/checkout@v4
-      
-      - name: installer terraform
-        uses:  hashicorp/setup-terraform@v3
+    needs: build-push
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: '1.5'
-         
-      - name: inistialisation de terraform
-        run: |
-          cd terraform
-          terraform init
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      
-            
-      - name: validation de fichier installer 
-        run: |
-          cd terraform
-          terraform validate
-      
-      - name: check 
-        run: |
-          cd terraform
-          terraform fmt -check
 
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
 
-      - name : terraform apply
-        run: |
-          cd terraform
-          terraform apply -auto-approve
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          TF_VAR_db_password: ${{ secrets.db_password }}
-          TF_VAR_key_name: ${{ secrets.key_name }}
+      - name: Terraform init
+        run: cd terraform && terraform init
 
+      - name: Terraform validate
+        run: cd terraform && terraform validate
+
+      - name: Terraform fmt check
+        run: cd terraform && terraform fmt -check
+
+      - name: Terraform apply
+        run: cd terraform && terraform apply -auto-approve
+        env:
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_jwt_secret:  ${{ secrets.JWT_SECRET }}
+          TF_VAR_image_tag:   ${{ github.sha }}

@@ -1,20 +1,14 @@
-# Etape 1 : image de base Node.js
-FROM node:20
-
-# Etape 2 : creer le dossier de l'application
+# ── STAGE 1 : installation des dépendances ───────────────────
+# Alpine = image ultra-légère (~50MB vs ~900MB pour node:20)
+FROM node:20-alpine AS deps
 WORKDIR /app
-
-# Etape 3 : copier package.json et package-lock.json
 COPY package*.json ./
+RUN npm ci --only=production
 
-# Etape 4 : installer les dependances
-RUN npm install
-
-# Etape 5 : copier tout le code backend
+# ── STAGE 2 : image finale (sans les outils de build) ────────
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-
-# Etape 6 : exposer le port 3000
 EXPOSE 3000
-
-# Etape 7 : lancer serveur avec node (pas nodemon)
 CMD ["node", "server.js"]

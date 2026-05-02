@@ -1,8 +1,19 @@
-node_modules/ 
-.env 
-.DS_Store 
+node_modules/
+.env
+.DS_Store
 
-# Documentation locale - Ne pas versionner (sauf README.md et GUIDE_DEPLOIEMENT.md)
+# Terraform : état local et secrets
+**/.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfstate.lock.info
+.terraform.lock.hcl
+terraform.tfvars.local
+
+# Variables sensibles — les vraies valeurs passent par GitHub Secrets
+# terraform.tfvars ne contient QUE des valeurs non-sensibles (aws_region)
+
+# Documentation locale
 PROMPT*.md
 PROMETHEUS*.md
 RENDU*.md
@@ -14,4 +25,4 @@ COURS*.md
 # Clés SSH - Ne JAMAIS versionner
 *.pem
 *.key
-ssh-keys/ 
+ssh-keys/

@@ -1,32 +1,27 @@
 # ============================================================
-# outputs.tf - "Quelles adresses afficher après le déploiement ?"
-# ============================================================
-# Après terraform apply, Terraform affiche ces valeurs
-# C'est comme un reçu qui te donne les infos importantes
+# outputs.tf — Informations affichées après terraform apply
 # ============================================================
 
-# ID de l'instance EC2 (utile pour SSM Session Manager)
-# Exemple : aws ssm start-session --target i-0XXXXXXXXX
-output "ec2_instance_id" {
-  description = "ID de l'instance EC2 (pour se connecter via SSM)"
-  value       = aws_instance.mini_chat_ec2.id
+# URL de l'application — à utiliser dans le navigateur
+output "app_url" {
+  description = "URL publique de l'application via l'ALB"
+  value       = "http://${aws_lb.mini_chat.dns_name}"
 }
 
-# IP publique du serveur EC2
-output "ec2_public_ip" {
-  description = "Adresse IP publique du serveur EC2"
-  value       = aws_instance.mini_chat_ec2.public_ip
-}
-
-# Endpoint de la base de données RDS
-# C'est l'adresse que le backend utilise pour se connecter à MySQL
+# Endpoint RDS — utile pour les migrations manuelles
 output "rds_endpoint" {
   description = "Endpoint de la base de données RDS MySQL"
   value       = aws_db_instance.mini_chat_db.endpoint
 }
 
-# URL de l'application
-output "app_url" {
-  description = "URL de l'application Mini-Chat"
-  value       = "http://${aws_instance.mini_chat_ec2.public_ip}:3000"
+# Nom du cluster ECS — pour les commandes aws ecs
+output "ecs_cluster" {
+  description = "Nom du cluster ECS"
+  value       = aws_ecs_cluster.mini_chat.name
+}
+
+# Nom du service ECS — pour les rollbacks et le monitoring
+output "ecs_service" {
+  description = "Nom du service ECS"
+  value       = aws_ecs_service.backend.name
 }

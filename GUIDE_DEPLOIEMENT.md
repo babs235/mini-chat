@@ -34,7 +34,7 @@ Cette section retrace les grandes etapes du projet, les choix techniques faits a
 
 ### Mars 2026 — Demarrage du projet (Seance 1, 02/03)
 
-Le programme ASD demarre le 2 mars 2026. Des la premiere seance, le projet est identifie : une application de messagerie interne, mini-chat, pour couvrir les trois blocs de competences — automatisation d'infrastructure (BC01), deploiement continu (BC02), et supervision des services (BC03).
+Le programme ASD demarre le 2 mars 2026. Des la premiere seance, le projet est identifie : une application de messagerie interne, mini-chat, qui couvrira les volets automatisation d'infrastructure, deploiement continu et supervision des services.
 
 **Choix technique initial — pourquoi Node.js et MySQL ?**
 Node.js est bien adapte aux connexions multiples simultanees, ce qui correspond naturellement a une application de chat. MySQL est une base relationnelle robuste, standard dans les projets web, et facile a conteneuriser. Express a ete choisi pour sa simplicite : c'est le framework minimal, sans surcouche inutile.
@@ -57,13 +57,13 @@ Interface HTML/CSS/JS simple : une page de connexion, une page de messages avec 
 
 Docker Compose est mis en place pour lancer l'environnement complet en une commande. A ce stade, le `docker-compose.yml` inclut : le backend Node.js, une base MySQL avec healthcheck, Prometheus et Grafana.
 
-Prometheus et Grafana sont ajoutes parce que la seance du 27 avril (BC03 — Statistiques de services) demande une solution de supervision. Le backend expose une route `/metrics` au format Prometheus. Des alertes sont configurees avec envoi sur Discord via webhook Alertmanager — CPU eleve, backend down, nombre d'utilisateurs actifs.
+Prometheus et Grafana sont ajoutes pour avoir un outil de supervision en local. Le backend expose une route `/metrics` au format Prometheus. Des alertes sont configurees avec envoi sur Discord via webhook Alertmanager — CPU eleve, backend down, nombre d'utilisateurs actifs.
 
 Un script `start.bat` est cree pour lancer l'environnement local en une commande sur Windows.
 
 ---
 
-### Avril 2026 — Premiere infrastructure AWS (BC01 mise en production)
+### Avril 2026 — Premiere infrastructure AWS
 
 **Semaine 4 — Terraform v1 : EC2 + RDS**
 
@@ -85,7 +85,7 @@ Ce probleme a rendu EC2 inadapte au deploiement continu tel qu'attendu dans le c
 
 ---
 
-### Mai 2026 — Migration vers ECS Fargate (BC02 finalisation)
+### Mai 2026 — Migration vers ECS Fargate
 
 **Decision : abandonner EC2 et passer a ECS Fargate**
 
@@ -120,13 +120,13 @@ Plusieurs erreurs de state Terraform ont ete rencontrees lors de la migration :
 
 **Contexte**
 
-Prometheus et Grafana avaient ete mis en place en local des la semaine 3 parce que la seance BC03 du 27 avril presentait ces outils comme reference. Le backend exposait ses metriques sur `/metrics` (prom-client). Des alertes etaient configurees avec Discord via webhook.
+Prometheus et Grafana avaient ete mis en place en local des la semaine 3 pour avoir un outil de supervision pendant le developpement. Le backend exposait ses metriques sur `/metrics` (prom-client). Des alertes etaient configurees avec Discord via webhook.
 
 **Pourquoi ce choix a ete revise**
 
 Prometheus et Grafana tournaient uniquement sur le PC local via Docker Compose. Ils ne supervisaient pas le service deploye sur AWS — ils supervisaient une instance locale qui n'est pas accessible en production et qui ne tourne pas en permanence.
 
-BC03 demande de superviser les *services deployes*. L'application en production tourne sur ECS Fargate en region eu-west-3. Prometheus en local ne voit pas ce container.
+L'objectif est de superviser le service *deploye*, pas une simulation locale. L'application en production tourne sur ECS Fargate en region eu-west-3. Prometheus sur le PC local ne voit pas ce container.
 
 Par ailleurs, deployer Prometheus et Grafana sur AWS aurait necessite :
 - Une instance EC2 ou un container ECS dedie a Prometheus
@@ -146,7 +146,7 @@ CloudWatch est deja integre nativement a ECS : les logs sont envoyes automatique
 
 **Ce qui remplace**
 
-CloudWatch collecte nativement : logs du container ECS, CPUUtilization, MemoryUtilization, ALB HTTPCode_ELB_5XX_Count, ALB TargetResponseTime, RDS FreeStorageSpace. Ces indicateurs couvrent les cinq familles de metriques attendues pour BC03 (disponibilite, performance, erreurs, ressources, stockage).
+CloudWatch collecte nativement : logs du container ECS, CPUUtilization, MemoryUtilization, ALB HTTPCode_ELB_5XX_Count, ALB TargetResponseTime, RDS FreeStorageSpace. Ces indicateurs couvrent la disponibilite, la performance, les erreurs, les ressources et le stockage — tout ce qu'on a besoin de superviser sur ce service.
 
 ---
 

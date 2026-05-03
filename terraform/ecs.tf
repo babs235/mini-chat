@@ -1,14 +1,12 @@
-# ============================================================
-# ecs.tf — Application : IAM, secrets, ECS Fargate, ALB
-# ============================================================
-
-# ── ECR : récupère l'URL du registre existant ────────────────
+# ── ECR ──────────────────────────────────────────────────────
+# On récupère l'URL du registre existant (créé manuellement une fois)
 data "aws_ecr_repository" "backend" {
   name = "mini-chat-backend"
 }
 
 # ── IAM : rôle d'exécution ECS ──────────────────────────────
-# Permet à ECS de puller l'image ECR et d'écrire les logs CloudWatch
+# Ce rôle permet à ECS de puller l'image ECR et d'écrire les logs CloudWatch
+# C'est différent du task role (qui lui donnerait des droits à l'appli elle-même)
 resource "aws_iam_role" "ecs_execution_role" {
   name = "mini-chat-ecs-execution-role"
 
@@ -22,13 +20,13 @@ resource "aws_iam_role" "ecs_execution_role" {
   })
 }
 
-# Politique AWS managée : ECR pull + CloudWatch logs
+# Politique AWS managée : droits ECR pull + écriture logs CloudWatch
 resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
   role       = aws_iam_role.ecs_execution_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Accès aux secrets SSM (DB password, JWT secret)
+# Droit supplémentaire : lire les secrets SSM au démarrage du container
 resource "aws_iam_role_policy" "ecs_ssm_policy" {
   name = "mini-chat-ssm-secrets-access"
   role = aws_iam_role.ecs_execution_role.id
@@ -46,8 +44,9 @@ resource "aws_iam_role_policy" "ecs_ssm_policy" {
   })
 }
 
-# ── SSM PARAMETER STORE : secrets chiffrés ──────────────────
-# Les valeurs arrivent depuis les GitHub Secrets via TF_VAR_*
+# ── SSM PARAMETER STORE ──────────────────────────────────────
+# Les secrets sont chiffrés ici — jamais en clair dans les variables d'environnement
+# Les valeurs arrivent depuis GitHub Secrets via TF_VAR_*
 resource "aws_ssm_parameter" "db_password" {
   name  = "/mini-chat/db_password"
   type  = "SecureString"
@@ -60,7 +59,7 @@ resource "aws_ssm_parameter" "jwt_secret" {
   value = var.jwt_secret
 }
 
-# ── CLOUDWATCH : logs des containers ────────────────────────
+# ── CLOUDWATCH LOGS ──────────────────────────────────────────
 resource "aws_cloudwatch_log_group" "mini_chat" {
   name              = "/ecs/mini-chat-backend"
   retention_in_days = 7
@@ -70,6 +69,7 @@ resource "aws_cloudwatch_log_group" "mini_chat" {
 resource "aws_ecs_cluster" "mini_chat" {
   name = "mini-chat-cluster"
 
+  # Container Insights active les métriques avancées (RunningTaskCount, etc.)
   setting {
     name  = "containerInsights"
     value = "enabled"
@@ -77,13 +77,13 @@ resource "aws_ecs_cluster" "mini_chat" {
 }
 
 # ── ECS TASK DEFINITION ──────────────────────────────────────
-# La "recette" du container : image, CPU, RAM, env vars, secrets, logs
+# La "recette" du container : image, CPU, RAM, variables, secrets, logs
 resource "aws_ecs_task_definition" "backend" {
   family                   = "mini-chat-backend"
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = "256" # 0.25 vCPU
-  memory                   = "512" # 512 MB RAM
+  cpu                      = "256"
+  memory                   = "512"
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
 
   container_definitions = jsonencode([{
@@ -95,7 +95,6 @@ resource "aws_ecs_task_definition" "backend" {
       protocol      = "tcp"
     }]
 
-    # Variables d'environnement non-sensibles
     environment = [
       { name = "DB_HOST", value = aws_db_instance.mini_chat_db.address },
       { name = "DB_USER", value = "root" },
@@ -103,13 +102,12 @@ resource "aws_ecs_task_definition" "backend" {
       { name = "NODE_ENV", value = "production" }
     ]
 
-    # Secrets injectés depuis SSM au démarrage du container (jamais en clair)
+    # Les secrets sont injectés depuis SSM au démarrage — jamais visibles dans les logs
     secrets = [
       { name = "DB_PASSWORD", valueFrom = aws_ssm_parameter.db_password.arn },
       { name = "JWT_SECRET", valueFrom = aws_ssm_parameter.jwt_secret.arn }
     ]
 
-    # Logs visibles dans CloudWatch > /ecs/mini-chat-backend
     logConfiguration = {
       logDriver = "awslogs"
       options = {
@@ -121,33 +119,7 @@ resource "aws_ecs_task_definition" "backend" {
   }])
 }
 
-# ── ALB : Application Load Balancer ─────────────────────────
-resource "aws_lb" "mini_chat" {
-  name               = "mini-chat-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
-}
-
-# Target Group : l'ALB sait vers quels containers envoyer le trafic
-resource "aws_lb_target_group" "backend" {
-  name        = "mini-chat-backend-tg"
-  port        = 3000
-  protocol    = "HTTP"
-  vpc_id      = aws_vpc.mini_chat_vpc.id
-  target_type = "ip" # Requis pour Fargate (pas d'instance EC2)
-
-  health_check {
-    path                = "/" # GET / → "Backend OK"
-    healthy_threshold   = 2
-    unhealthy_threshold = 3
-    timeout             = 5
-    interval            = 30
-  }
-}
-
-# ── ACM : certificat SSL pour chat.ibrahimbabikir.fr ────────────
+# ── ACM : certificat SSL ─────────────────────────────────────
 resource "aws_acm_certificate" "mini_chat" {
   domain_name       = "chat.ibrahimbabikir.fr"
   validation_method = "DNS"
@@ -157,6 +129,7 @@ resource "aws_acm_certificate" "mini_chat" {
   }
 }
 
+# Attend que le CNAME de validation soit propagé avant de continuer
 resource "aws_acm_certificate_validation" "mini_chat" {
   certificate_arn = aws_acm_certificate.mini_chat.arn
 
@@ -165,7 +138,33 @@ resource "aws_acm_certificate_validation" "mini_chat" {
   }
 }
 
-# Listener HTTP : redirige tout le trafic vers HTTPS (301)
+# ── ALB ──────────────────────────────────────────────────────
+resource "aws_lb" "mini_chat" {
+  name               = "mini-chat-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb_sg.id]
+  subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
+}
+
+# target_type = "ip" est obligatoire avec Fargate (pas d'instance EC2 derrière)
+resource "aws_lb_target_group" "backend" {
+  name        = "mini-chat-backend-tg"
+  port        = 3000
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.mini_chat_vpc.id
+  target_type = "ip"
+
+  health_check {
+    path                = "/"
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+  }
+}
+
+# HTTP → redirige vers HTTPS (301)
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.mini_chat.arn
   port              = 80
@@ -181,7 +180,7 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# Listener HTTPS : trafic chiffré vers les containers ECS
+# HTTPS → forward vers les containers ECS
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.mini_chat.arn
   port              = 443
@@ -196,7 +195,7 @@ resource "aws_lb_listener" "https" {
 }
 
 # ── ECS SERVICE ──────────────────────────────────────────────
-# Le "gardien" : maintient 1 container en vie, gère les rolling updates
+# Maintient 1 container en vie et gère les rolling updates automatiquement
 resource "aws_ecs_service" "backend" {
   name            = "mini-chat-backend"
   cluster         = aws_ecs_cluster.mini_chat.id
@@ -207,7 +206,8 @@ resource "aws_ecs_service" "backend" {
   network_configuration {
     subnets          = [aws_subnet.public_1.id, aws_subnet.public_2.id]
     security_groups  = [aws_security_group.ecs_sg.id]
-    assign_public_ip = true # Nécessaire pour puller ECR sans NAT Gateway
+    # assign_public_ip = true car sans NAT Gateway, le container ne peut pas joindre ECR
+    assign_public_ip = true
   }
 
   load_balancer {
@@ -216,6 +216,6 @@ resource "aws_ecs_service" "backend" {
     container_port   = 3000
   }
 
-  # Le service attend que les deux listeners ALB soient prêts avant de démarrer
+  # Les deux listeners doivent exister avant que ECS démarre
   depends_on = [aws_lb_listener.http, aws_lb_listener.https]
 }

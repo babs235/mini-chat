@@ -1,7 +1,3 @@
-# ============================================================
-# main.tf — Réseau, sécurité et base de données
-# ============================================================
-
 # ── VPC ──────────────────────────────────────────────────────
 resource "aws_vpc" "mini_chat_vpc" {
   cidr_block           = "10.0.0.0/16"
@@ -11,7 +7,7 @@ resource "aws_vpc" "mini_chat_vpc" {
 }
 
 # ── SUBNETS ──────────────────────────────────────────────────
-# 2 subnets publics (AZ différentes) requis par l'ALB
+# L'ALB exige 2 subnets publics dans des AZ différentes
 resource "aws_subnet" "public_1" {
   vpc_id                  = aws_vpc.mini_chat_vpc.id
   cidr_block              = "10.0.1.0/24"
@@ -28,7 +24,7 @@ resource "aws_subnet" "public_2" {
   tags                    = { Name = "mini-chat-public-2" }
 }
 
-# 2 subnets privés pour RDS (AWS exige 2 AZ minimum)
+# RDS exige aussi 2 AZ minimum — ces subnets sont privés (pas d'IP publique)
 resource "aws_subnet" "private_1" {
   vpc_id            = aws_vpc.mini_chat_vpc.id
   cidr_block        = "10.0.2.0/24"
@@ -44,6 +40,7 @@ resource "aws_subnet" "private_2" {
 }
 
 # ── INTERNET GATEWAY + ROUTES ────────────────────────────────
+# Permet aux subnets publics de communiquer avec internet
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.mini_chat_vpc.id
   tags   = { Name = "mini-chat-igw" }
@@ -69,10 +66,10 @@ resource "aws_route_table_association" "public_2" {
 }
 
 # ── SECURITY GROUP : ALB ─────────────────────────────────────
-# L'ALB accepte le trafic HTTP public
+# Ports 80 et 443 ouverts au public — tout le reste est bloqué
 resource "aws_security_group" "alb_sg" {
   name        = "mini-chat-alb-sg"
-  description = "ALB: HTTP public entrant"
+  description = "ALB: HTTP et HTTPS entrant"
   vpc_id      = aws_vpc.mini_chat_vpc.id
 
   ingress {
@@ -100,7 +97,7 @@ resource "aws_security_group" "alb_sg" {
 }
 
 # ── SECURITY GROUP : ECS TASKS ───────────────────────────────
-# Les containers n'acceptent le trafic que depuis l'ALB
+# Le container n'accepte du trafic que depuis l'ALB (pas directement depuis internet)
 resource "aws_security_group" "ecs_sg" {
   name        = "mini-chat-ecs-sg"
   description = "ECS Fargate: trafic entrant depuis ALB uniquement"
@@ -113,7 +110,7 @@ resource "aws_security_group" "ecs_sg" {
     security_groups = [aws_security_group.alb_sg.id]
   }
 
-  # Sortie libre : reach ECR (HTTPS), RDS (3306), CloudWatch
+  # Sortie libre : nécessaire pour joindre ECR, RDS et CloudWatch
   egress {
     from_port   = 0
     to_port     = 0
@@ -125,10 +122,10 @@ resource "aws_security_group" "ecs_sg" {
 }
 
 # ── SECURITY GROUP : RDS ─────────────────────────────────────
-# La base de données n'accepte MySQL que depuis les containers ECS
+# MySQL accessible uniquement depuis les containers ECS — jamais depuis internet
 resource "aws_security_group" "db_sg" {
   name        = "mini-chat-db-sg"
-  description = "Security group for RDS MySQL - VPC access only"
+  description = "RDS MySQL: accès depuis ECS uniquement"
   vpc_id      = aws_vpc.mini_chat_vpc.id
 
   ingress {
@@ -149,6 +146,7 @@ resource "aws_security_group" "db_sg" {
 }
 
 # ── RDS MySQL ────────────────────────────────────────────────
+# Le subnet group dit à RDS dans quels subnets il peut placer la base
 resource "aws_db_subnet_group" "mini_chat" {
   name       = "mini-chat-db-subnet-group"
   subnet_ids = [aws_subnet.private_1.id, aws_subnet.private_2.id]
@@ -170,6 +168,7 @@ resource "aws_db_instance" "mini_chat_db" {
   vpc_security_group_ids = [aws_security_group.db_sg.id]
   db_subnet_group_name   = aws_db_subnet_group.mini_chat.name
 
+  # 1 jour de backup = limite du free tier (7 dépassait le quota)
   backup_retention_period = 1
   backup_window           = "03:00-04:00"
   skip_final_snapshot     = true

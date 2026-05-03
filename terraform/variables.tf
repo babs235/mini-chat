@@ -1,30 +1,25 @@
-# ============================================================
-# variables.tf — Paramètres de l'infrastructure
-# ============================================================
-# Règle : les valeurs SENSIBLES n'ont pas de default.
-# Elles arrivent exclusivement via GitHub Secrets (TF_VAR_*).
-# ============================================================
-
 variable "aws_region" {
   description = "Région AWS cible"
   type        = string
   default     = "eu-west-3"
 }
 
+# Sans default → Terraform bloque si la valeur n'est pas fournie
+# En CI/CD elles arrivent via TF_VAR_* depuis les GitHub Secrets
 variable "db_password" {
-  description = "Mot de passe RDS MySQL — via GitHub Secret TF_VAR_db_password"
+  description = "Mot de passe RDS MySQL"
   type        = string
   sensitive   = true
 }
 
 variable "jwt_secret" {
-  description = "Clé secrète JWT — via GitHub Secret TF_VAR_jwt_secret"
+  description = "Clé secrète pour signer les tokens JWT"
   type        = string
   sensitive   = true
 }
 
-# En CI/CD : TF_VAR_image_tag=${{ github.sha }}
-# En local  : default "latest" pour terraform plan/apply manuel
+# En CI/CD : github.sha → on sait exactement quel commit est déployé
+# En local  : "latest" pour les terraform plan sans pipeline
 variable "image_tag" {
   description = "Tag de l'image Docker dans ECR"
   type        = string

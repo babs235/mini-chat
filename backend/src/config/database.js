@@ -1,5 +1,6 @@
 const mysql = require("mysql2");
 
+// Pool de connexions — MySQL réutilise les connexions plutôt que d'en créer une par requête
 const pool = mysql.createPool({
   host: process.env.DB_HOST || "db",
   user: process.env.DB_USER || "root",
@@ -10,6 +11,7 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
+// Gestion silencieuse des déconnexions — le pool se reconnecte automatiquement
 pool.on("error", (err) => {
   if (err.code === "PROTOCOL_CONNECTION_LOST" || err.code === 4031) {
     console.log("MySQL disconnected - pool will reconnect automatically");
@@ -20,6 +22,7 @@ pool.on("error", (err) => {
 
 const db = pool.promise();
 
+// Crée les tables si elles n'existent pas — lancé une fois au démarrage
 async function initSchema() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS users (

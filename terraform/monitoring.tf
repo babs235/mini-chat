@@ -1,4 +1,4 @@
-# ── SNS : canal de notification par email ────────────────────────
+# ── SNS : notifications email ────────────────────────────────
 resource "aws_sns_topic" "alerts" {
   name = "mini-chat-alerts"
 }
@@ -9,6 +9,7 @@ resource "aws_sns_topic_subscription" "email" {
   endpoint  = "babikiribrahimalkhalil@gmail.com"
 }
 
+# Permet à CloudWatch de publier sur ce topic SNS
 resource "aws_sns_topic_policy" "alerts_policy" {
   arn = aws_sns_topic.alerts.arn
 
@@ -23,7 +24,8 @@ resource "aws_sns_topic_policy" "alerts_policy" {
   })
 }
 
-# ── ALARMES CLOUDWATCH ────────────────────────────────────────────
+# ── ALARMES CLOUDWATCH ────────────────────────────────────────
+# Déclenche une alerte email si le container s'arrête
 resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped" {
   alarm_name          = "mini-chat-ecs-task-stopped"
   comparison_operator = "LessThanThreshold"
@@ -43,6 +45,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped" {
   }
 }
 
+# Déclenche si plus de 10 erreurs 5xx sur 5 minutes
 resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   alarm_name          = "mini-chat-alb-5xx-eleve"
   comparison_operator = "GreaterThanThreshold"
@@ -61,6 +64,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   }
 }
 
+# Déclenche si le CPU dépasse 80% pendant 10 minutes consécutives
 resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   alarm_name          = "mini-chat-ecs-cpu-eleve"
   comparison_operator = "GreaterThanThreshold"
@@ -80,6 +84,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   }
 }
 
+# Déclenche si l'espace disque RDS passe sous 2 Go
 resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
   alarm_name          = "mini-chat-rds-espace-disque-faible"
   comparison_operator = "LessThanThreshold"

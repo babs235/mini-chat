@@ -1,12 +1,3 @@
-# ============================================================
-# provider.tf - "Qui construit et où sont les plans ?"
-# ============================================================
-# Ce fichier dit à Terraform :
-#   1. Quel fournisseur cloud utiliser (AWS)
-#   2. Où stocker le state (coffre-fort S3)
-#   3. Où mettre le verrou (cadenas DynamoDB)
-# ============================================================
-
 terraform {
   required_providers {
     aws = {
@@ -15,6 +6,7 @@ terraform {
     }
   }
 
+  # State distant dans S3 chiffré — pas de lock DynamoDB (projet solo, un seul apply à la fois)
   backend "s3" {
     bucket  = "mini-chat-tfstate-babs235"
     key     = "prod/terraform.tfstate"

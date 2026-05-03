@@ -2,9 +2,8 @@ const jwt = require("jsonwebtoken");
 
 const SECRET = process.env.JWT_SECRET;
 
-// 🔥 middleware qui protège les routes
+// Middleware JWT : bloque les routes si le token est absent ou invalide
 function verifyToken(req, res, next) {
-
   const token = req.headers["authorization"];
 
   if (!token) {
@@ -13,15 +12,11 @@ function verifyToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, SECRET);
-
-    // 👉 on récupère userId depuis le token
-    req.user = decoded;
-
+    req.user = decoded; // userId et username disponibles dans les routes suivantes
     next();
   } catch (err) {
     return res.status(401).json({ error: "Token invalide" });
   }
-
 }
 
 module.exports = verifyToken;

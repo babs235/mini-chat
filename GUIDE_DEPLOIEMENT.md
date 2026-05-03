@@ -9,6 +9,7 @@
 | v1.0 | Avril 2026 | Architecture EC2 + RDS, pipeline CI/CD initial |
 | v2.0 | Mai 2026 | Migration ECS Fargate, suppression SSH et user_data |
 | v2.1 | Mai 2026 | Retrait Prometheus/Grafana, adoption CloudWatch |
+| v2.2 | Mai 2026 | HTTPS ACM, SNS alerting, smoke tests pré-prod, suppression DynamoDB lock |
 
 ---
 
@@ -150,6 +151,48 @@ CloudWatch collecte nativement : logs du container ECS, CPUUtilization, MemoryUt
 
 ---
 
+### Mai 2026 — HTTPS, alerting, conformite pre-prod (v2.2)
+
+**HTTPS avec ACM et domaine personnel**
+
+Le projet tournait jusqu'ici en HTTP pur. Le critere de securite ASD exige un chiffrement du transport. J'avais un domaine personnel (`ibrahimbabikir.fr`) enregistre chez IONOS, ce qui rendait la chose possible sans cout supplementaire.
+
+La mise en place a necessite :
+- Un certificat ACM (AWS Certificate Manager) pour le sous-domaine `chat.ibrahimbabikir.fr`, avec validation par CNAME ajoutee manuellement dans le panneau IONOS
+- Un listener HTTPS port 443 sur l'ALB avec la politique TLS 1.3
+- Le listener HTTP port 80 transforme en redirection 301 vers HTTPS
+- L'ouverture du port 443 dans le security group ALB
+- Deux enregistrements CNAME dans IONOS : un pour la validation ACM, un pour faire pointer `chat.ibrahimbabikir.fr` vers le DNS de l'ALB
+
+Probleme rencontre : lors du premier apply, ECS tentait de se mettre a jour au meme moment que la validation ACM (qui prend quelques minutes). L'ECS service echouait car le listener HTTPS n'existait pas encore. Resolution : ajout d'un `depends_on` sur le listener HTTPS dans la ressource ECS service.
+
+**Suppression du verrou DynamoDB Terraform**
+
+Le backend Terraform utilisait une table DynamoDB (`mini-chat-tflock`) pour verrouiller le state et eviter deux `terraform apply` simultanees. Ce mecanisme est concu pour les equipes. Sur un projet solo, GitHub Actions ne lance qu'un seul pipeline a la fois — le verrou n'apportait rien.
+
+De plus, le quota IAM de 10 politiques managees par utilisateur etait atteint. Retirer la politique `AmazonDynamoDBFullAccess` liberait un emplacement necessaire pour d'autres permissions (ACM, SNS). La solution propre etait de supprimer le `dynamodb_table` du backend Terraform plutot que d'ajouter une politique inline.
+
+**Notifications email via SNS**
+
+Les alarmes CloudWatch existaient mais n'envoyaient aucune notification — elles changeaient d'etat sans que personne le sache. Ajout d'un topic SNS `mini-chat-alerts` avec souscription email et politique autorisant CloudWatch a publier. Les 4 alarmes (ECS stopped, ALB 5xx, ECS CPU, RDS storage) declenchent maintenant un email automatique.
+
+**Smoke tests et conformite pre-prod**
+
+Le referentiel ASD precise que l'environnement de pre-production doit etre conforme a l'environnement de production. Le pipeline ne testait jusqu'ici que le code Node.js brut (Jest, sans Docker). Ce n'est pas representatif de ce qui tourne en production.
+
+Ajout d'un Job 3 dans la pipeline : il pull l'image Docker depuis ECR (le meme artefact qui sera deploye), la demarre comme container, et execute trois verifications HTTP :
+- `GET /` repond 200
+- `POST /auth/register {}` repond 400 (validation sans base de donnees)
+- `GET /messages` sans token repond 403 (protection JWT)
+
+Si l'image est cassee, ce job echoue et le deploiement est bloque. L'image qui passe les smoke tests est exactement la meme que celle deployee sur ECS.
+
+**Correction frontend pour HTTPS**
+
+Apres passage en HTTPS, l'application ne fonctionnait plus. La cause : le fichier `config.js` construisait les URLs API sous la forme `http://hostname:3000`, ce qui etait bloque par le navigateur (mixed content — page HTTPS appelant du HTTP). Resolution : en production, l'URL de base est une chaine vide, les appels deviennent relatifs (`/auth/register`), et le navigateur utilise automatiquement le bon protocole et le bon host.
+
+---
+
 ## 1. ARCHITECTURE
 
 ### Vue d'ensemble
@@ -186,7 +229,7 @@ Internet
 
 | SG | Autorise | Depuis |
 |----|----------|--------|
-| `mini-chat-alb-sg` | Port 80 entrant | Internet (0.0.0.0/0) |
+| `mini-chat-alb-sg` | Port 80 et 443 entrant | Internet (0.0.0.0/0) |
 | `mini-chat-ecs-sg` | Port 3000 entrant | ALB uniquement |
 | `mini-chat-db-sg` | Port 3306 entrant | ECS uniquement |
 
@@ -204,8 +247,7 @@ Internet
 ### Compte AWS
 
 - Region : `eu-west-3` (Paris)
-- Etat Terraform stocke dans S3 : `mini-chat-tfstate-babs235`
-- Verrou Terraform dans DynamoDB : `mini-chat-tflock`
+- Etat Terraform stocke dans S3 : `mini-chat-tfstate-babs235` (chiffre, sans verrou DynamoDB — projet solo)
 
 ### Permissions IAM (user mini-chat-admin)
 
@@ -216,11 +258,14 @@ Internet
 | AmazonEC2FullAccess | VPC, subnets, security groups |
 | AmazonRDSFullAccess | Gerer RDS |
 | AmazonS3FullAccess | State Terraform |
-| AmazonDynamoDBFullAccess | Verrou Terraform |
 | AmazonSSMFullAccess | Secrets chiffres |
+| AmazonSNSFullAccess | Topics et souscriptions alerting |
 | IAMFullAccess | Creer les roles ECS |
 | ElasticLoadBalancingFullAccess | Creer et gerer l'ALB |
 | CloudWatchLogsFullAccess | Consulter les logs containers |
+| acm-certificate-inline (inline) | Creer et valider les certificats ACM |
+
+Note : DynamoDB retire du scope (verrou supprime, projet solo). Le quota AWS de 10 politiques managees par utilisateur est respecte.
 
 ---
 
@@ -248,21 +293,26 @@ Chaque push sur la branche `main` declenche le pipeline automatiquement.
 ### Etapes
 
 ```
-Job 1 : Tests et Lint
+Job 1 : Tests
   └── npm ci
-  └── npm run lint
-  └── npm test
+  └── npm test (9 tests Jest, base de donnees mockee)
 
 Job 2 : Build and Push to ECR          (necessite Job 1)
   └── docker build (multi-stage alpine)
   └── push image:<sha-du-commit>
   └── push image:latest
 
-Job 3 : Deploy via Terraform           (necessite Job 2)
+Job 3 : Smoke tests pre-prod           (necessite Job 2)
+  └── pull image:<sha-du-commit> depuis ECR
+  └── docker run (meme image qu'en production)
+  └── GET /           → attend 200
+  └── POST /auth/register {} → attend 400
+  └── GET /messages   → attend 403 (pas de token)
+
+Job 4 : Deploy via Terraform           (necessite Job 3)
   └── terraform init
   └── terraform validate
   └── terraform fmt -check
-  └── fix state (import subnet group)
   └── terraform apply -auto-approve
       └── cree/met a jour ECS Task Definition avec la nouvelle image
       └── ECS Service deploie la nouvelle version (rolling update)
@@ -275,6 +325,7 @@ Job 3 : Deploy via Terraform           (necessite Job 2)
 |-----|-------|
 | Tests | ~30 secondes |
 | Build & Push | ~2 minutes |
+| Smoke tests | ~1 minute |
 | Deploy Terraform | ~3-5 minutes |
 
 ### Tracer un deploiement
@@ -294,15 +345,17 @@ Chaque image est taguee avec le hash du commit Git (`github.sha`). Dans ECS, la 
 | `terraform/variables.tf` | Variables (region, secrets, image_tag) |
 | `terraform/outputs.tf` | Outputs apres apply (URL ALB, endpoint RDS) |
 | `terraform/moved.tf` | Historique des renommages de ressources |
-| `terraform/provider.tf` | Provider AWS + backend S3 |
+| `terraform/monitoring.tf` | CloudWatch alarmes + SNS notifications |
+| `terraform/provider.tf` | Provider AWS + backend S3 (sans verrou DynamoDB) |
 
 ### Outputs apres deploiement
 
 ```
-app_url     = "http://mini-chat-alb-xxxxxxxxx.eu-west-3.elb.amazonaws.com"
-rds_endpoint = "mini-chat-db.xxxxxxxxx.eu-west-3.rds.amazonaws.com:3306"
-ecs_cluster = "mini-chat-cluster"
-ecs_service = "mini-chat-backend"
+app_url              = "https://chat.ibrahimbabikir.fr"
+acm_validation_cname = (CNAME de validation du certificat SSL)
+rds_endpoint         = "mini-chat-db.xxxxxxxxx.eu-west-3.rds.amazonaws.com:3306"
+ecs_cluster          = "mini-chat-cluster"
+ecs_service          = "mini-chat-backend"
 ```
 
 ### Variables Terraform

@@ -1,66 +1,59 @@
 flowchart TD
-    Dev["👨‍💻 Développeur\ngit push main"]
-    User["🧑‍💻 Utilisateur final\nNavigateur web"]
+    Dev["Développeur\ngit push main"]
+    User["Utilisateur\nhttps://chat.ibrahimbabikir.fr"]
 
     subgraph CI["GitHub Actions — Pipeline CI/CD"]
         direction LR
-        J1["Job 1\nnpm test\n10 tests Jest"]
-        J2["Job 2\ndocker build\npush ECR :sha-commit"]
-        J3["Job 3\nterraform apply"]
-        J1 -->|"✅ OK"| J2
-        J2 -->|"✅ OK"| J3
+        J1["Job 1\nTests Jest"]
+        J2["Job 2\nBuild + Push ECR"]
+        J3["Job 3\nSmoke tests pré-prod"]
+        J4["Job 4\nTerraform deploy"]
+        J1 --> J2 --> J3 --> J4
     end
 
-    subgraph SECRETS["Gestion des secrets"]
-        GHS["GitHub Secrets\nAWS_ACCESS_KEY_ID\nDB_PASSWORD / JWT_SECRET"]
-        SSM["AWS SSM Parameter Store\n🔒 SecureString AES-256\n/mini-chat/db_password\n/mini-chat/jwt_secret"]
-        GHS -->|"TF_VAR → Terraform"| SSM
+    subgraph SECRETS["Secrets"]
+        GHS["GitHub Secrets\nAWS / DB / JWT"]
+        SSM["SSM Parameter Store\nSecureString AES-256"]
+        GHS -->|"TF_VAR_*"| SSM
     end
 
-    subgraph STATE["State Terraform"]
-        S3["S3 mini-chat-tfstate-babs235\nState chiffré"]
-        DDB["DynamoDB mini-chat-tflock\nVerrou"]
-    end
-
-    subgraph AWS["☁️ AWS eu-west-3 — Paris"]
-        subgraph PUB["Subnets publics — eu-west-3a + eu-west-3c"]
-            ALB["🔀 ALB mini-chat-alb\nport 80 — health check GET /\nRolling update zero-downtime"]
-            ECS["📦 ECS Fargate\nmini-chat-backend\nNode.js port 3000\n0.25 vCPU / 512 MB"]
+    subgraph AWS["AWS eu-west-3 Paris"]
+        subgraph PUB["Subnets publics"]
+            ACM["ACM\nchat.ibrahimbabikir.fr\nTLS 1.3"]
+            ALB["ALB\nport 443 HTTPS\nport 80 → redirect 301"]
+            ECS["ECS Fargate\nNode.js :3000\n0.25 vCPU / 512 MB"]
         end
 
-        subgraph PRIV["Subnets privés — eu-west-3a + eu-west-3c"]
-            RDS["🗄️ RDS MySQL 8.0\nmini-chat-db\ndb.t3.micro / 20 Go\nBackup 7 jours"]
+        subgraph PRIV["Subnets privés"]
+            RDS["RDS MySQL 8.0\ndb.t3.micro / 20 Go\nbackup 1 jour"]
         end
 
-        subgraph OBS["Observabilité"]
-            CW["📊 CloudWatch\n/ecs/mini-chat-backend\nLogs 7 jours\n4 alarmes configurées"]
+        subgraph OBS["Supervision"]
+            CW["CloudWatch\nlogs + 4 alarmes"]
+            SNS["SNS\nnotification email"]
         end
 
-        ECR["🐳 ECR mini-chat-backend\nImage :sha-commit\nImage :latest"]
+        ECR["ECR\nimage :sha-commit"]
     end
 
-    INET(["🌐 Internet"])
+    S3["S3\nTerraform state"]
 
-    User -->|"HTTP\nmini-chat-alb.eu-west-3.elb.amazonaws.com"| INET
+    User -->|"HTTPS"| ACM
+    ACM --> ALB
     Dev --> CI
-    J3 -->|"Terraform crée\nTask Definition ECS"| AWS
     J2 -->|"push image"| ECR
-    ECR -->|"pull image au démarrage"| ECS
-    SSM -->|"injection secrets\nau démarrage"| ECS
-
-    INET -->|"HTTP port 80"| ALB
-    ALB -->|"port 3000\n(depuis ALB uniquement)"| ECS
-    ECS -->|"port 3306\n(depuis ECS uniquement)"| RDS
+    J4 -->|"terraform apply"| AWS
+    J4 -.->|"state"| S3
+    ECR -->|"pull au démarrage"| ECS
+    SSM -->|"secrets injectés"| ECS
+    ALB -->|"port 3000"| ECS
+    ECS -->|"port 3306"| RDS
     ECS --> CW
-
-    J3 -.->|"state"| S3
-    J3 -.->|"verrou"| DDB
+    CW -->|"alarme"| SNS
 
     style CI fill:#1a1a2e,color:#fff
     style AWS fill:#0a2342,color:#fff
     style SECRETS fill:#1a2e1a,color:#fff
-    style STATE fill:#2e2a1a,color:#fff
     style PUB fill:#0d3b6e,color:#fff
     style PRIV fill:#3b0d0d,color:#fff
     style OBS fill:#1a3b1a,color:#fff
-    style INET fill:#2d5a27,color:#fff

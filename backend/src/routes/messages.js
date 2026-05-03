@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require("../config/database");
 const verifyToken = require("../middleware/auth");
 
+// Neutralise les caractères HTML pour éviter les attaques XSS
 function escapeHtml(text) {
   return text
     .replace(/&/g, "&amp;")
@@ -37,8 +38,9 @@ router.post("/", verifyToken, async (req, res) => {
 
 router.get("/", verifyToken, async (req, res) => {
   try {
+    // Jointure pour récupérer le username avec chaque message
     const sql = `
-      SELECT messages.id, users.username, messages.message
+      SELECT messages.id, users.username, messages.message, messages.created_at
       FROM messages
       JOIN users ON messages.user_id = users.id
       ORDER BY messages.id ASC

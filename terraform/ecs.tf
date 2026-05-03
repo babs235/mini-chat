@@ -69,6 +69,11 @@ resource "aws_cloudwatch_log_group" "mini_chat" {
 # ── ECS CLUSTER ─────────────────────────────────────────────
 resource "aws_ecs_cluster" "mini_chat" {
   name = "mini-chat-cluster"
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
 # ── ECS TASK DEFINITION ──────────────────────────────────────

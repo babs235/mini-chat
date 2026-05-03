@@ -25,13 +25,9 @@ jobs:
         working-directory: ./backend
         run: npm ci
 
-      - name: Lint
-        working-directory: ./backend
-        run: npm run lint || echo "No linter configured"
-
       - name: Tests
         working-directory: ./backend
-        run: npm test || echo "No tests yet"
+        run: npm test
 
 
   # ── JOB 2 : BUILD & PUSH ECR ─────────────────────────────────────

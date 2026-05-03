@@ -1,715 +1,621 @@
-# CAHIER DES CHARGES — Mini-Chat
-
-## Application de messagerie — Projet ASD DevOps
-
----
-
-**Auteur** : Babikir Ibrahim
-**Formation** : Administrateur Systemes et DevOps (ASD)
-**Version** : 4.0 — Architecture ECS Fargate (Mai 2026)
-**Depot GitHub** : github.com/babs235/mini-chat
+# PROMPT POWERPOINT — Soutenance ASD Niveau 6
+## Mini-Chat — Administrateur Système DevOps
 
 ---
 
-## TABLE DES MATIERES
-
-1. [Presentation du projet](#1-presentation-du-projet)
-2. [Fonctionnalites de l'application](#2-fonctionnalites-de-lapplication)
-3. [Architecture technique](#3-architecture-technique)
-4. [Stack technique](#4-stack-technique)
-5. [Pipeline CI/CD](#5-pipeline-cicd)
-6. [Infrastructure AWS](#6-infrastructure-aws)
-7. [Securite](#7-securite)
-8. [Statistiques de services — BC03](#8-statistiques-de-services--bc03)
-9. [Evolutions prevues](#9-evolutions-prevues)
-10. [Planning et livrables](#10-planning-et-livrables)
-11. [Retour d'experience](#11-retour-dexperience)
-
----
-
-## 1. PRESENTATION DU PROJET
-
-### 1.1 Contexte
-
-Dans le cadre de la formation **Administrateur Systemes et DevOps**, ce projet demontre la maitrise complete du cycle de vie d'une application cloud-native : developpement, conteneurisation, deploiement automatise, securite et supervision.
-
-Le projet a evolue en trois phases :
-- **Phase 0 (Mars 2026)** : Developpement local, authentification, Docker Compose, Prometheus/Grafana, scripts d'automatisation
-- **Phase 1 (Avril 2026)** : Premiere infrastructure AWS (EC2 + RDS), pipeline CI/CD initial
-- **Phase 2 (Mai 2026)** : Migration vers ECS Fargate, suppression de tout acces SSH, pipeline entierement automatise
-
-### 1.2 Objectifs
-
-| ID | Objectif | Statut |
-|----|----------|--------|
-| O1 | Developper une application de messagerie fonctionnelle | Realise |
-| O2 | Conteneuriser l'application avec Docker (multi-stage) | Realise |
-| O3 | Orchestrer en local avec Docker Compose | Realise |
-| O4 | Deployer sur AWS avec Terraform (Infrastructure as Code) | Realise |
-| O5 | Implementer un pipeline CI/CD complet avec GitHub Actions | Realise |
-| O6 | Securiser les secrets avec AWS SSM Parameter Store | Realise |
-| O7 | Deployer sur ECS Fargate (sans EC2, sans SSH) | Realise |
-| O8 | Superviser le service avec CloudWatch et metriques Prometheus | Realise |
-| O9 | Ajouter HTTPS avec nom de domaine (mini-chat.dev) | Prevu |
-
-### 1.3 Perimetre
-
-**Inclus :**
-- Application backend API REST (Node.js/Express)
-- Frontend web (HTML/CSS/JavaScript)
-- Base de donnees MySQL managee (AWS RDS)
-- Conteneurisation Docker optimisee multi-stage
-- Infrastructure AWS entierement en code (Terraform)
-- Pipeline CI/CD automatise de bout en bout
-- Gestion des secrets chiffres (SSM Parameter Store)
-- Supervision production (CloudWatch) et local (Prometheus + Grafana + alertes Discord)
-- Schema de base de donnees auto-cree au demarrage
-
-**Non inclus :**
-- Application mobile native
-- WebSocket temps reel (polling HTTP 3s utilise)
-- Authentification OAuth externe
+> **Instructions pour l'IA (Gamma / Skywork / ChatGPT / tout outil de présentation) :**
+> Crée une présentation PowerPoint professionnelle de soutenance sur ce projet DevOps.
+> Thème sombre (bleu marine ou noir), style technique, icônes AWS et DevOps.
+> Police moderne (Inter ou Roboto). Couleur d'accent : orange ou bleu électrique.
+> Chaque slide a un titre clair et du contenu structuré (bullets, tableaux ou schémas).
+> Le plan suit EXACTEMENT le canevas officiel du référentiel ASD Niveau 6.
+>
+> IMPORTANT : Les lignes ═══ sont des SÉPARATEURS DE STRUCTURE — ce ne sont PAS des slides.
+> Seules les lignes "## SLIDE N" sont des slides à créer.
+>
+> TIMING : la présentation dure exactement 30 minutes.
+> Slides 1-5 : ~6 min — Slides 6-15 : ~16 min — Slides 16-17 : ~4 min — Slides 18-20 : ~4 min
 
 ---
 
-## 2. FONCTIONNALITES DE L'APPLICATION
+## ═══════════════════════════════════════════
+## SECTION 1 — PRÉSENTATION DE L'ENTREPRISE ET DU SERVICE
+## (Référentiel ASD — canevas diaporama point 1)
+## ═══════════════════════════════════════════
 
-### 2.1 API Backend
+---
 
-#### Authentification
+## SLIDE 1 — Page de titre
 
-| Route | Methode | Description |
-|-------|---------|-------------|
-| `/auth/register` | POST | Creation compte avec validation et hachage bcrypt |
-| `/auth/login` | POST | Connexion avec generation token JWT |
+**Titre principal :** Mini-Chat — Application de messagerie cloud-native
 
-Specifications :
-- Validation : username 3-20 caracteres, password minimum 6 caracteres
-- Hachage bcrypt avec 10 rounds de salage
-- Token JWT signe avec secret injecte par AWS SSM, expiration 1 heure
-- Requetes SQL preparees (protection injection SQL)
+**Sous-titre :** Déploiement automatisé sur AWS ECS Fargate avec pipeline CI/CD 4 jobs et HTTPS
 
-#### Messages
+**Informations :**
+- Candidat : Babikir Ibrahim
+- Formation : Administrateur Système DevOps — Titre RNCP Niveau 6
+- Date : Mai 2026
+- Technologies : Node.js · Docker · Terraform · GitHub Actions · AWS ECS Fargate · ACM · SNS
 
-| Route | Methode | Auth | Description |
-|-------|---------|------|-------------|
-| `/messages` | GET | JWT | Recuperation de l'historique des messages |
-| `/messages` | POST | JWT | Envoi d'un message avec protection XSS |
+**Visuel :** fond sombre avec les logos AWS, Docker, GitHub Actions, Terraform
 
-#### Metriques et disponibilite
+---
 
-| Route | Methode | Description |
-|-------|---------|-------------|
-| `/metrics` | GET | Metriques applicatives au format Prometheus |
-| `/` | GET | Health check ALB (retourne "Backend OK") |
+## SLIDE 2 — Présentation du service
 
-### 2.2 Frontend
+**Titre :** Le service — Mini-Chat
 
-| Page | Fonctionnalites |
-|------|-----------------|
-| `index.html` | Formulaire connexion/inscription, toggle, validation client |
-| `messages.html` | Bulles de chat, refresh automatique 3s, avatars dynamiques, deconnexion |
+**Contexte du service :**
+Mini-Chat est une application de messagerie interne développée dans le cadre de la formation Administrateur Système DevOps. Elle permet à des équipes d'échanger des messages via une interface web, avec authentification sécurisée, stockage persistant et HTTPS sur domaine propre.
 
-Design : glassmorphism, animations CSS, responsive mobile-first.
+**Le service en chiffres :**
+- 2 routes d'authentification (inscription / connexion)
+- 2 routes de messagerie (lecture / envoi)
+- 1 base de données relationnelle MySQL managée (AWS RDS)
+- 1 pipeline CI/CD automatisé en 4 étapes
+- 1 infrastructure cloud entièrement en code (Terraform)
+- HTTPS sur https://chat.ibrahimbabikir.fr
 
-### 2.3 Schema de base de donnees
+**Utilisateurs cibles :**
+Équipes internes — accès via navigateur web sans installation, depuis n'importe quel appareil connecté à Internet.
 
-```sql
-CREATE TABLE IF NOT EXISTS users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  username VARCHAR(50) NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+**Périmètre du projet :**
+Projet réalisé en formation, de la conception à la mise en production sur AWS, couvrant l'ensemble des compétences ASD : infrastructure, conteneurisation, déploiement continu, sécurité et supervision.
 
-CREATE TABLE IF NOT EXISTS messages (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  user_id INT,
-  message TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
+**Visuel :** capture d'écran de l'interface Mini-Chat (page de connexion + page de messagerie)
+
+---
+
+## ═══════════════════════════════════════════
+## SECTION 2 — CONTEXTE DU PROJET
+## (Référentiel ASD — canevas diaporama point 2)
+## Inclut : cahier des charges, contraintes, livrables attendus
+## ═══════════════════════════════════════════
+
+---
+
+## SLIDE 3 — Contexte et phases du projet
+
+**Titre :** Contexte du projet — 3 phases de réalisation
+
+**3 phases de réalisation (timeline horizontale) :**
+
+| Phase | Période | Ce qui a été fait |
+|-------|---------|-------------------|
+| Phase 0 | Mars 2026 | Backend Node.js, authentification JWT, frontend HTML/CSS/JS, Docker Compose local |
+| Phase 1 | Avril 2026 | Infrastructure AWS EC2 + RDS, pipeline CI/CD initial, Dockerfile multi-stage |
+| Phase 2 | Mai 2026 | Migration ECS Fargate, suppression SSH, SSM secrets, HTTPS/ACM, smoke tests, alertes SNS |
+
+**Décision de migration Phase 1 → Phase 2 :**
+Sur EC2, le pipeline passait en vert mais l'application ne répondait pas. Après analyse : `user_data` asynchrone, image Docker buildée sur l'EC2 depuis le code source, aucune tracabilité. ECS Fargate résout tous ces problèmes sans gestion de serveur.
+
+**Visuel :** timeline horizontale en 3 étapes colorées (orange → bleu → vert)
+
+---
+
+## SLIDE 4 — Cahier des charges
+
+**Titre :** Cahier des charges — Objectifs
+
+**Tableau des objectifs avec statut :**
+
+| Objectif | Statut |
+|----------|--------|
+| Application de messagerie fonctionnelle (API REST + Frontend) | ✅ Réalisé |
+| Conteneurisation Docker multi-stage Alpine | ✅ Réalisé |
+| Infrastructure AWS entièrement en code (Terraform) | ✅ Réalisé |
+| Pipeline CI/CD automatisé GitHub Actions | ✅ Réalisé |
+| Secrets sécurisés avec AWS SSM Parameter Store | ✅ Réalisé |
+| Déploiement ECS Fargate sans EC2, sans SSH | ✅ Réalisé |
+| Tests automatisés bloquant le déploiement (Jest + smoke tests) | ✅ Réalisé |
+| HTTPS avec domaine propre (chat.ibrahimbabikir.fr) | ✅ Réalisé |
+| Supervision CloudWatch avec 4 alarmes + notifications email (SNS) | ✅ Réalisé |
+| Auto Scaling ECS (min 1 / max 3 containers) | 🔜 Planifié |
+
+---
+
+## SLIDE 5 — Contraintes et livrables attendus
+
+**Titre :** Contraintes et livrables
+
+**Contraintes du projet :**
+
+| Contrainte | Détail |
+|-----------|--------|
+| Projet formation | Réalisé en centre de formation, pas en entreprise |
+| Budget | Free Tier AWS + ressources minimales (ECS 0.25 vCPU / 512 MB, RDS db.t3.micro) |
+| Pas de WebSocket | Rafraîchissement HTTP toutes les 3 secondes (polling) |
+| Domaine IONOS | Pas de Route 53 — CNAMEs gérés manuellement dans le panel IONOS |
+| Un seul container | Pas d'auto-scaling — planifié en évolution |
+| RDS sans accès direct | Subnet privé → schéma auto-créé au démarrage de l'application |
+
+**Livrables attendus et produits :**
+
+| Livrable | Statut |
+|----------|--------|
+| Code source complet | ✅ github.com/babs235/mini-chat |
+| Cahier des charges | ✅ CAHIER_DES_CHARGES_COMPLET.md |
+| Guide de déploiement | ✅ GUIDE_DEPLOIEMENT.md |
+| Infrastructure as Code | ✅ terraform/ (7 fichiers) |
+| Pipeline CI/CD | ✅ .github/workflows/ci-cd.yml (4 jobs) |
+| Application HTTPS en production | ✅ https://chat.ibrahimbabikir.fr |
+| Supervision opérationnelle | ✅ CloudWatch + 4 alarmes + SNS email |
+
+---
+
+## ═══════════════════════════════════════════
+## SECTION 3 — PRÉSENTATION DE L'INFRASTRUCTURE ET DE L'APPLICATION
+## (Référentiel ASD — canevas diaporama point 3)
+## ═══════════════════════════════════════════
+
+---
+
+## SLIDE 6 — Architecture générale
+
+**Titre :** Architecture — Vue d'ensemble
+
+**Schéma du flux complet :**
 ```
-
-Les tables sont creees automatiquement au demarrage du container (`initSchema()` dans `database.js`). Aucune intervention manuelle n'est necessaire.
-
----
-
-## 3. ARCHITECTURE TECHNIQUE
-
-### 3.1 Vue d'ensemble
-
-```
-Developpeur
+Développeur
     |
     | git push main
-    v
+    ↓
 GitHub Actions (CI/CD)
-    |
-    |-- Job 1 : Tests et Lint
-    |-- Job 2 : Build image Docker -> push ECR
-    |-- Job 3 : Terraform apply -> ECS deploie la nouvelle version
-    |
-    v
-AWS Infrastructure
-    |
-    |-- ALB (Application Load Balancer)
-    |       Expose l'application sur Internet
-    |       Health check sur GET / avant bascule du trafic
-    |       Zero coupure au deploiement (rolling update)
-    |
-    |-- ECS Fargate
-    |       Container Node.js (image depuis ECR)
-    |       Redemarre automatiquement si crash
-    |       Secrets injectes depuis SSM au demarrage
-    |
-    |-- RDS MySQL (subnet prive)
-    |       Inaccessible depuis Internet
-    |       Backup automatique quotidien
-    |
-    |-- CloudWatch
-            Logs du container en temps reel
-            Retention 7 jours
+    ├── Job 1 : npm test (9 tests Jest) ──────── bloque si échec
+    ├── Job 2 : docker build → push ECR :sha-commit
+    ├── Job 3 : smoke tests (pull ECR → HTTP tests) ─ bloque si KO
+    └── Job 4 : terraform apply → ECS déploie la nouvelle version
+                        ↓
+        AWS eu-west-3 (Paris)
+        ┌────────────────────────────────────────────────────┐
+        │  Utilisateur → HTTPS 443 → [ACM] → [ALB]          │
+        │                              ↓ health check GET /  │
+        │                 [ECS Fargate — Node.js port 3000]  │
+        │                              ↓ port 3306           │
+        │                 [RDS MySQL — subnet privé]         │
+        │                                                    │
+        │  CloudWatch Logs + 4 Alarmes → [SNS] → Email       │
+        └────────────────────────────────────────────────────┘
 ```
 
-### 3.2 Architecture reseau
+**Points clés :**
+- Aucun accès SSH — ECS Fargate, zéro gestion de serveur
+- Chaque image Docker taguée avec le hash exact du commit Git
+- Rolling update : déploiement sans coupure de service
+- HTTPS enforced : HTTP port 80 redirige automatiquement vers HTTPS 443
 
-```
-Internet
-    |
-  [ ALB ] ..................... subnet public  eu-west-3a + eu-west-3c
-    |
-  [ ECS Fargate Task ] ........ subnet public  eu-west-3a + eu-west-3c
-    |                           (assign_public_ip pour atteindre ECR)
-  [ RDS MySQL ] ............... subnet prive   eu-west-3a + eu-west-3c
-                                (aucun acces depuis Internet)
-```
+**Visuel :** insérer docs/architecture.png (schéma Mermaid exporté)
 
-### 3.3 Flux de deploiement
+---
 
-```
-1. Developpeur push code sur GitHub (branche main)
-2. GitHub Actions lance le pipeline automatiquement
-3. Job 1 : tests, lint
-4. Job 2 : docker build -> image taguee avec le hash du commit
-           docker push ECR :sha-commit + :latest
-5. Job 3 : terraform apply
-           -> cree une nouvelle Task Definition ECS avec la nouvelle image
-           -> ECS Service lance le nouveau container
-           -> ALB verifie le health check (GET /)
-           -> Si OK : trafic bascule vers le nouveau container
-           -> Si KO : ancien container reste actif (rollback automatique)
-6. Logs visibles dans CloudWatch en temps reel
-```
+## SLIDE 7 — Application Mini-Chat
 
-### 3.4 Security Groups (principe du moindre privilege)
+**Titre :** L'application — API REST et frontend
 
-| Security Group | Autorise | Source |
+**Backend Node.js/Express — Routes :**
+
+| Route | Méthode | Auth | Description |
+|-------|---------|------|-------------|
+| /auth/register | POST | Non | Inscription (bcrypt 10 rounds, validation longueur) |
+| /auth/login | POST | Non | Connexion — retourne JWT signé (1h) |
+| /messages | GET | JWT | Historique complet avec timestamps |
+| /messages | POST | JWT | Envoi avec protection XSS (escapeHtml) |
+| / | GET | Non | Health check ALB → HTTP 200 |
+
+**Sécurité applicative (3 protections) :**
+- SQL Injection → Requêtes préparées mysql2 (jamais de concaténation)
+- XSS → `escapeHtml()` avant chaque insertion en base
+- JWT → Token signé avec secret depuis AWS SSM, expiration 1 heure
+
+**Frontend :**
+HTML/CSS/JS — glassmorphism, responsive mobile-first, rafraîchissement automatique 3 secondes.
+URL de production en relatif (vide) — pas de hardcoding, compatible HTTPS automatiquement.
+
+---
+
+## SLIDE 8 — Réseau et sécurité
+
+**Titre :** Sécurité réseau — Principe du moindre privilège
+
+**Security Groups (3 niveaux d'isolation) :**
+
+| Security Group | Autorise | Depuis |
 |----------------|----------|--------|
-| `mini-chat-alb-sg` | Port 80 entrant | 0.0.0.0/0 (Internet) |
-| `mini-chat-ecs-sg` | Port 3000 entrant | ALB uniquement |
-| `mini-chat-db-sg` | Port 3306 entrant | ECS uniquement |
+| mini-chat-alb-sg | Port 80 + 443 entrants | Internet (0.0.0.0/0) |
+| mini-chat-ecs-sg | Port 3000 entrant | ALB uniquement |
+| mini-chat-db-sg | Port 3306 entrant | ECS uniquement |
 
-La base de donnees est inaccessible depuis Internet et depuis l'ALB directement.
+**Résultat :**
+```
+Internet → [ALB ports 80/443] → [ECS port 3000] → [RDS port 3306]
+           ↑ seul accès public   ↑ invisible        ↑ invisible
+                                   depuis internet     depuis internet
+```
+
+La base de données est inaccessible depuis Internet et depuis l'ALB directement.
+Pas de port SSH ouvert — aucune ressource n'a de clé SSH.
+
+**Note sur assign_public_ip = true (ECS) :**
+Les containers ECS ont une IP publique assignée — non par choix de sécurité, mais par contrainte de coût :
+sans NAT Gateway (32$/mois), les containers doivent avoir une IP publique pour joindre ECR et CloudWatch.
+Le Security Group `mini-chat-ecs-sg` bloque tout accès entrant direct depuis Internet : seul l'ALB peut joindre le port 3000.
+L'IP publique sert uniquement au trafic sortant (pull image ECR, envoi logs). En production réelle, un NAT Gateway serait la solution préférable.
 
 ---
 
-## 4. STACK TECHNIQUE
+## SLIDE 9 — Terraform — Infrastructure as Code
 
-### 4.1 Application
+**Titre :** Terraform — Infrastructure entièrement en code
 
-| Technologie | Version | Usage |
-|-------------|---------|-------|
-| Node.js | 20 LTS | Runtime backend |
-| Express.js | 4.x | Framework API REST |
-| mysql2 | 3.x | Driver MySQL avec Promises et requetes preparees |
-| bcrypt | 5.x | Hachage des mots de passe |
-| jsonwebtoken | 9.x | Generation et verification tokens JWT |
-| cors | 2.x | Gestion des requetes cross-origin |
-
-### 4.2 DevOps et Infrastructure
-
-| Technologie | Version | Usage |
-|-------------|---------|-------|
-| Docker | Latest | Conteneurisation multi-stage (Alpine) |
-| Docker Compose | v2 | Orchestration locale (developpement uniquement) |
-| Terraform | 1.5 | Infrastructure as Code AWS |
-| GitHub Actions | - | Pipeline CI/CD automatise |
-| AWS ECR | - | Registre d'images Docker prive |
-| AWS ECS Fargate | - | Execution des containers sans gestion de serveur |
-| AWS ALB | - | Load balancer applicatif, rolling updates, health checks |
-| AWS RDS MySQL | 8.0 | Base de donnees managee en subnet prive |
-| AWS SSM Parameter Store | - | Stockage chiffre des secrets |
-| AWS CloudWatch | - | Logs et monitoring des containers en production |
-| AWS S3 + DynamoDB | - | Backend state Terraform avec verrou |
-
-### 4.3 Dockerfile multi-stage
-
-```dockerfile
-# Stage 1 : installation des dependances (image Alpine legere)
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-
-# Stage 2 : image finale sans outils de build
-FROM node:20-alpine
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-EXPOSE 3000
-CMD ["node", "server.js"]
-```
-
-Resultat : image finale ~180 MB au lieu de ~950 MB avec `node:20`.
-
----
-
-## 5. PIPELINE CI/CD
-
-### 5.1 Declenchement
-
-Chaque push sur la branche `main` declenche le pipeline automatiquement. Aucune action manuelle n'est requise.
-
-### 5.2 Structure du pipeline
-
-```
-Job 1 : Tests et Lint
-  Duree : ~30 secondes
-  - npm ci (installation dependances)
-  - npm run lint
-  - npm test
-
-Job 2 : Build and Push to ECR
-  Duree : ~2 minutes
-  Necessite : Job 1 reussi
-  - Connexion a AWS ECR
-  - docker build (multi-stage Alpine)
-  - docker push image:<hash-commit>   <- tracabilite exacte
-  - docker push image:latest          <- reference rapide
-
-Job 3 : Deploy via Terraform
-  Duree : ~3-5 minutes
-  Necessite : Job 2 reussi
-  - terraform init (recupere le state depuis S3)
-  - terraform validate + fmt -check
-  - Nettoyage etat Terraform si necessaire
-  - terraform apply -auto-approve
-    -> Cree nouvelle Task Definition ECS avec l'image du commit
-    -> ECS Service deploie via rolling update
-    -> ALB valide le health check avant bascule du trafic
-```
-
-### 5.3 Tracabilite
-
-Chaque image Docker est taguee avec le hash exact du commit Git. La Task Definition ECS indique quelle image tourne. On peut identifier a tout moment quel commit est en production.
-
-### 5.4 Secrets du pipeline
-
-| Secret GitHub | Usage dans le pipeline |
-|---------------|------------------------|
-| `AWS_ACCESS_KEY_ID` | Authentification AWS |
-| `AWS_SECRET_ACCESS_KEY` | Authentification AWS |
-| `DB_PASSWORD` | Injecte dans SSM -> container ECS |
-| `JWT_SECRET` | Injecte dans SSM -> container ECS |
-
-Les secrets ne transitent jamais en clair. Terraform les stocke dans SSM Parameter Store (chiffre AES-256). ECS les recupere depuis SSM au demarrage du container.
-
----
-
-## 6. INFRASTRUCTURE AWS
-
-### 6.1 Fichiers Terraform
+**7 fichiers Terraform :**
 
 | Fichier | Contenu |
 |---------|---------|
-| `terraform/main.tf` | VPC, subnets, internet gateway, security groups, RDS |
-| `terraform/ecs.tf` | IAM roles, SSM parameters, CloudWatch, ECS cluster/service/task, ALB |
-| `terraform/variables.tf` | Variables d'entree (region, secrets, image_tag) |
-| `terraform/outputs.tf` | URL ALB, endpoint RDS, noms ECS |
-| `terraform/provider.tf` | Provider AWS, backend S3 + DynamoDB |
-| `terraform/moved.tf` | Historique des renommages de ressources |
+| main.tf | VPC, 4 subnets, Internet Gateway, 3 Security Groups, RDS MySQL |
+| ecs.tf | IAM roles, SSM secrets, CloudWatch logs, ECS cluster/task/service, ALB, ACM |
+| monitoring.tf | 4 alarmes CloudWatch + topic SNS + abonnement email |
+| variables.tf | Variables d'entrée (région, secrets, image_tag) |
+| outputs.tf | URL ALB, endpoint RDS, noms ECS après déploiement |
+| provider.tf | Provider AWS + backend state S3 (chiffré, sans verrou DynamoDB — projet solo, aucun accès concurrent possible) |
+| moved.tf | Historique des renommages de ressources |
 
-### 6.2 Ressources creees
+**Ce que Terraform crée automatiquement :**
+VPC · 4 subnets · Internet Gateway · 3 Security Groups · ALB · Target Group · Listener HTTP (redirect) · Listener HTTPS (TLS 1.3) · ACM Certificate · ECS Cluster · ECS Task Definition · ECS Service · RDS MySQL · ECR (data) · SSM Parameters · CloudWatch Logs · 4 Alarmes · SNS Topic + Subscription · IAM Role
 
-| Ressource AWS | Nom | Configuration |
-|---------------|-----|---------------|
-| VPC | mini-chat-vpc | 10.0.0.0/16, DNS enabled |
-| Subnet public 1 | mini-chat-public-1 | 10.0.1.0/24, eu-west-3a |
-| Subnet public 2 | mini-chat-public-2 | 10.0.4.0/24, eu-west-3c |
-| Subnet prive 1 | mini-chat-private-1 | 10.0.2.0/24, eu-west-3a |
-| Subnet prive 2 | mini-chat-private-2 | 10.0.3.0/24, eu-west-3c |
-| Security Group ALB | mini-chat-alb-sg | Port 80 depuis Internet |
-| Security Group ECS | mini-chat-ecs-sg | Port 3000 depuis ALB |
-| Security Group RDS | mini-chat-db-sg | Port 3306 depuis ECS |
-| ALB | mini-chat-alb | Application, public, multi-AZ |
-| Target Group | mini-chat-backend-tg | Port 3000, health check GET / |
-| ECS Cluster | mini-chat-cluster | Fargate |
-| ECS Task Definition | mini-chat-backend | 0.25 vCPU, 512 MB RAM |
-| ECS Service | mini-chat-backend | desired_count = 1, rolling update |
-| RDS MySQL | mini-chat-db | db.t3.micro, 20 GB, subnet prive |
-| ECR | mini-chat-backend | Images Docker taguees par commit |
-| SSM | /mini-chat/db_password | SecureString chiffre |
-| SSM | /mini-chat/jwt_secret | SecureString chiffre |
-| CloudWatch | /ecs/mini-chat-backend | Logs 7 jours de retention |
-| IAM Role | mini-chat-ecs-execution-role | ECR pull + CloudWatch + SSM |
-| S3 | mini-chat-tfstate-babs235 | State Terraform chiffre |
-| DynamoDB | mini-chat-tflock | Verrou Terraform |
-
-### 6.3 Rolling update sans coupure
-
-1. Nouveau container demarre en parallele de l'ancien
-2. ALB envoie une requete `GET /` sur le nouveau container
-3. Si reponse 200 : trafic bascule, ancien container arrete
-4. Si pas de reponse : ancien container reste actif (rollback automatique)
+Un seul `git push` met à jour toute l'infrastructure — y compris les alarmes, les secrets et les certificats.
 
 ---
 
-## 7. SECURITE
+## SLIDE 10 — Pipeline CI/CD — 4 jobs
 
-### 7.1 Gestion des secrets
+**Titre :** Pipeline CI/CD — GitHub Actions
 
-| Secret | Phase 1 (EC2) | Phase 2 (ECS Fargate) |
-|--------|---------------|----------------------|
-| DB_PASSWORD | Fichier .env en clair | SSM Parameter Store chiffre AES-256 |
-| JWT_SECRET | Fichier .env en clair | SSM Parameter Store chiffre AES-256 |
-| AWS credentials | ~/.aws/credentials | GitHub Secrets, jamais en clair |
+**4 jobs séquentiels :**
 
-Les secrets ne sont jamais dans le code source, jamais dans les logs, jamais dans le state Terraform (marques `sensitive = true`).
+```
+PUSH sur main
+     ↓
+┌─────────────────────────┐
+│  Job 1 — Tests          │  ~30 secondes
+│  npm ci                 │
+│  npm test (9 Jest)      │ ← bloque tout si échec
+└───────────┬─────────────┘
+            ↓ ✅ OK
+┌─────────────────────────┐
+│  Job 2 — Build ECR      │  ~2 minutes
+│  docker build           │
+│  push :sha-commit       │ ← tracabilité exacte
+│  push :latest           │
+└───────────┬─────────────┘
+            ↓ ✅ OK
+┌─────────────────────────┐
+│  Job 3 — Smoke Tests    │  ~1 minute
+│  pull image :sha-commit │ ← même artefact qu'en prod
+│  docker run (env fictif)│
+│  curl GET / → 200       │ ← santé de base
+│  curl POST /register → 400 (validation)
+│  curl GET /messages → 403 (auth requise)
+│  ❌ KO → STOP, pas de déploiement
+└───────────┬─────────────┘
+            ↓ ✅ OK
+┌─────────────────────────┐
+│  Job 4 — Deploy         │  ~3-5 minutes
+│  terraform init         │
+│  terraform apply        │ ← ECS déploie la nouvelle image
+└─────────────────────────┘
+```
 
-### 7.2 Protection des acces reseau
+**Conformité pré-prod :** le Job 3 garantit que l'image ECR est fonctionnelle AVANT le déploiement.
+On teste le même artefact (hash SHA identique) qui partira en production.
 
-- RDS inaccessible depuis Internet (subnet prive)
-- Containers ECS accessibles uniquement via ALB (port 3000 ferme depuis Internet)
-- Aucun port SSH ouvert (pas d'EC2, pas de SSH)
-- Acces IAM au principe du moindre privilege
-
-### 7.3 Protection applicative
-
-| Attaque | Protection | Fichier |
-|---------|-----------|---------|
-| SQL Injection | Requetes preparees mysql2 | `auth.js`, `messages.js` |
-| XSS | Echappement HTML | `messages.js` (escapeHtml) |
-| JWT Forging | Secret fort depuis SSM, expiration 1h | `auth.js`, `middleware/auth.js` |
-| CSRF | CORS configure, tokens JWT | `server.js` |
+**Limite assumée des smoke tests :** les variables DB sont fictives — la connectivité MySQL réelle n'est pas testée ici.
+Ce cas est couvert après déploiement : l'ALB vérifie `GET /` avant de basculer le trafic. Si le container ne peut pas joindre RDS, il échoue au démarrage, le health check ALB ne passe pas, et l'ancien container reste actif (rollback automatique).
 
 ---
 
-## 8. STATISTIQUES DE SERVICES — BC03
+## SLIDE 11 — Docker multi-stage
 
-Cette section repond a la competence BC03 : *Definir et mettre en place des statistiques de services*.
+**Titre :** Conteneurisation — Dockerfile multi-stage Alpine
 
-> **Phrase cle (oral)** : "J'ai choisi ces indicateurs parce qu'ils permettent de verifier la disponibilite, la performance et la capacite de mon service. J'ai defini des seuils simples pour declencher une alerte avant que l'utilisateur soit fortement impacte."
-
-### 8.1 Services surveilles
-
-L'architecture mini-chat est composee de quatre services critiques :
-
-| Service | Description |
-|---------|-------------|
-| API Node.js (ECS) | Container principal qui traite toutes les requetes |
-| ALB | Point d'entree public, verifie la disponibilite du container |
-| RDS MySQL | Base de donnees persistante, en subnet prive |
-| Pipeline CI/CD | Deploiement automatique — echec = service non mis a jour |
-
-### 8.2 Metriques, indicateurs, KPI — distinctions
-
-| Terme | Definition | Exemple dans ce projet |
-|-------|-----------|----------------------|
-| **Metrique** | Mesure brute collectee automatiquement | 47 requetes HTTP recues, CPU a 12%, 3 messages envoyes |
-| **Indicateur** | Metrique interpretee pour suivre l'etat d'un service | Taux d'erreurs 5xx sur 24h, temps de reponse moyen |
-| **KPI** | Indicateur cle relie a un objectif de service | Disponibilite mensuelle 99%, p95 < 500 ms |
-| **SLA** | Engagement de niveau de service | Service accessible 99% du temps, restauration < 2h |
-
-### 8.3 Indicateurs retenus avec seuils et actions
-
-| Service | Indicateur | Outil / Source | Seuil | Action en cas d'alerte |
-|---------|-----------|---------------|-------|----------------------|
-| ALB | Disponibilite (health check `GET /`) | CloudWatch — ALB TargetResponseTime | Indisponible > 1 min | Lire CloudWatch `/ecs/mini-chat-backend`, forcer redeploi ECS |
-| ALB | Taux d'erreurs HTTP 5xx | CloudWatch — ALB HTTPCode_ELB_5XX_Count | > 2% sur 5 min | Analyser les logs CloudWatch, rollback vers la revision precedente |
-| Container ECS | Nombre de redemarrages | CloudWatch ECS Logs | > 3 / heure | Lire les logs, verifier OOM ou crash au demarrage |
-| Container ECS | CPU utilise | CloudWatch — ECS CPUUtilization | > 80% pendant 10 min | Analyser la charge, envisager l'auto scaling |
-| RDS MySQL | Espace disque libre | CloudWatch — RDS FreeStorageSpace | < 2 Go restants (sur 20 Go) | Purger les vieux messages, augmenter le volume RDS |
-
-### 8.4 KPI et objectifs de service (SLA)
-
-| KPI | Objectif cible | Indicateur associe |
-|-----|---------------|--------------------|
-| Disponibilite mensuelle | >= 99% | ALB health check + ECS task status |
-| Temps de reponse | p95 < 500 ms | ALB access logs + metriques `/metrics` |
-| Taux d'erreurs | < 2% HTTP 5xx sur 24h | `http_requests_total` par code HTTP |
-| Restauration apres incident | < 2 heures | Rolling update automatique ou redeploi manuel |
-
-Ces seuils sont justifies :
-- **99% de disponibilite** : standard minimal pour un service interne accessible 24h/24
-- **500 ms p95** : seuil perceptible pour un utilisateur — au-dela, l'experience se degrade
-- **2% d'erreurs 5xx** : taux acceptable pour absorber les erreurs transitoires sans impacter les utilisateurs
-- **2h de restauration** : correspond a la duree d'un redeploi manuel complet si le pipeline echoue
-
-### 8.5 Outil de supervision — AWS CloudWatch
-
-| Avantage | Detail |
-|----------|--------|
-| Integre nativement | Aucune infrastructure supplementaire a gerer |
-| Zero configuration | Les logs ECS sont envoyes automatiquement |
-| Securise | Pas de port supplementaire a ouvrir |
-| Economique | Inclus dans le free tier AWS |
-
-**Logs** : AWS Console → CloudWatch → Journaux → `/ecs/mini-chat-backend`
-
-Logs confirmes au demarrage :
+**Dockerfile :**
 ```
-Schema initialized
-Server started on port 3000
+Stage 1 — deps (node:20-alpine)
+  WORKDIR /app
+  COPY package*.json ./
+  npm ci --only=production
+  → installe uniquement les dépendances de production
+
+Stage 2 — final (node:20-alpine)
+  COPY --from=deps /app/node_modules
+  COPY code source
+  EXPOSE 3000
+  CMD ["node", "server.js"]
 ```
 
-**Metriques CloudWatch disponibles** :
+**Résultat :** image ~180 MB au lieu de ~950 MB — 6x plus légère
 
-| Source | Metrique | Ce qu'elle mesure |
-|--------|---------|------------------|
-| ECS | CPUUtilization | CPU consomme par le container |
-| ECS | MemoryUtilization | RAM utilisee par le container |
-| ALB | HTTPCode_ELB_5XX_Count | Nombre d'erreurs 5xx retournees |
-| ALB | TargetResponseTime | Temps de reponse de l'application |
-| ALB | RequestCount | Volume de trafic recu |
-| RDS | FreeStorageSpace | Espace disque restant sur la base |
-| RDS | DatabaseConnections | Connexions actives vers MySQL |
-
-### 8.6 Exemple d'incident reel et analyse
-
-**Symptome** : le container ECS demarrait puis s'arretait immediatement. Les logs CloudWatch montraient :
-
-```
-Schema init failed: connect ECONNREFUSED
-```
-
-**Cause identifiee** : le container tentait de joindre MySQL avant que RDS soit pret a accepter des connexions (demarrage a froid apres un delai).
-
-**Verification** :
-1. Logs CloudWatch → flux le plus recent → message `Schema init failed`
-2. ECS Console → Taches → code de sortie `1`
-3. RDS Console → etat `available` mais connexions initialement refusees
-
-**Correction appliquee** : ajout d'une gestion d'erreur non bloquante dans `initSchema()` — le serveur demarre meme si le schema echoue, et le pool MySQL gere la reconnexion automatiquement.
-
-**Lecon** : une metrique de "container restarts" dans CloudWatch aurait detecte ce comportement immediatement sans inspection manuelle.
-
-### 8.7 Rollback
-
-En cas de deploiement defaillant, le rolling update de l'ALB empeche le trafic de basculer vers le container defectueux (rollback automatique).
-
-Rollback manuel si necessaire :
-```bash
-aws ecs update-service \
-  --cluster mini-chat-cluster \
-  --service mini-chat-backend \
-  --task-definition mini-chat-backend:<numero-revision-precedente> \
-  --region eu-west-3
-```
-
-### 8.8 Limites actuelles et ameliorations prevues
-
-| Limite actuelle | Amelioration prevue |
-|-----------------|---------------------|
-| Pas d'alerte automatique si container tombe | CloudWatch Alarm sur ECS TaskCount = 0 |
-| Pas d'alerte sur erreurs 5xx | CloudWatch Alarm sur ALB HTTPCode_ELB_5XX_Count |
-| Pas d'alerte CPU | CloudWatch Alarm sur ECS CPUUtilization > 80% |
-| Un seul container (SPOF) | Auto Scaling ECS min 1 / max 3 |
-| HTTP uniquement | HTTPS avec ACM + domaine mini-chat.dev |
-
-> **Pour le PowerPoint** : ajouter obligatoirement des captures d'ecran reelles — CloudWatch (groupe de journaux `/ecs/mini-chat-backend`) et/ou dashboard Grafana local. Le jury attend des preuves visuelles que la supervision fonctionne.
+**Avantages :**
+- Aucun outil de build dans l'image de production
+- Surface d'attaque minimale (Alpine Linux)
+- Démarrage plus rapide du container
+- Coûts de stockage ECR réduits (économie directe)
 
 ---
 
-## 9. EVOLUTIONS PREVUES
+## SLIDE 12 — HTTPS avec ACM
 
-### 9.1 HTTPS avec nom de domaine (priorite haute)
+**Titre :** HTTPS — Certificat SSL AWS Certificate Manager
 
-**Objectif** : securiser les communications et donner une URL professionnelle.
+**Problème initial :** application accessible uniquement en HTTP sur l'URL de l'ALB (adresse peu mémorisable, pas de cadenas SSL).
 
-**Domaine prevu** : `mini-chat.dev`
-
-**Plan d'implementation** :
+**Solution mise en place :**
 
 ```
-1. Achat du domaine via Route 53 (ou transfert depuis un autre registrar)
-2. Creation certificat SSL dans AWS Certificate Manager (gratuit)
-3. Validation du domaine (enregistrement DNS CNAME automatique)
-4. Ajout listener HTTPS (port 443) sur l'ALB dans Terraform
-5. Redirection HTTP -> HTTPS sur l'ALB (port 80 redirige vers 443)
-6. Creation enregistrement DNS Route 53 pointant vers l'ALB
+1. Achat domaine ibrahimbabikir.fr chez IONOS
+2. Création certificat ACM dans Terraform (eu-west-3)
+   → Validation par DNS — ACM génère un CNAME à ajouter
+3. IONOS DNS panel — 2 enregistrements CNAME ajoutés manuellement :
+   ├── Validation ACM : _acme-xxxxx.chat.ibrahimbabikir.fr → validation.acm.amazonaws.com
+   └── Sous-domaine   : chat.ibrahimbabikir.fr → mini-chat-alb-xxxxxxxxx.eu-west-3.elb.amazonaws.com
+4. ALB — 2 listeners configurés dans Terraform :
+   ├── Port 80  HTTP  → redirect 301 vers HTTPS
+   └── Port 443 HTTPS → forward vers ECS (TLS 1.3, policy ELBSecurityPolicy-TLS13-1-2-2021-06)
+5. Frontend — URLs relatives (string vide) en production
+   → plus de Mixed Content, compatible HTTP local et HTTPS prod
 ```
 
-Fichiers Terraform a modifier : `terraform/ecs.tf` (ajout listener 443, certificat ACM), `terraform/main.tf` (port 443 dans ALB SG), nouveau `terraform/dns.tf` (Route 53).
+**Résultat :** https://chat.ibrahimbabikir.fr — cadenas SSL, TLS 1.3, redirection HTTP automatique.
 
-**Resultat** : `https://mini-chat.dev` accessible depuis n'importe quel navigateur avec cadenas SSL.
+---
 
-### 9.2 ECR Lifecycle Policy
+## SLIDE 13 — Gestion des secrets
 
-Supprimer automatiquement les anciennes images Docker dans ECR pour maitriser les couts.
+**Titre :** Secrets — AWS SSM Parameter Store
 
-```json
-{
-  "rules": [{
-    "rulePriority": 1,
-    "description": "Keep last 10 images",
-    "selection": { "tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 10 },
-    "action": { "type": "expire" }
-  }]
+**Avant (Phase 1 - EC2) :** fichier `.env` en clair sur le serveur
+
+**Après (Phase 2 - ECS Fargate) :**
+
+```
+GitHub Secrets              GitHub Actions Pipeline
+├── DB_PASSWORD    ─────→   TF_VAR_db_password
+└── JWT_SECRET     ─────→   TF_VAR_jwt_secret
+                                     ↓
+                            Terraform stocke dans
+                            SSM Parameter Store
+                            /mini-chat/db_password  🔒 SecureString AES-256
+                            /mini-chat/jwt_secret   🔒 SecureString AES-256
+                                     ↓
+                            ECS injecte au démarrage
+                            du container (champ secrets, jamais en clair)
+```
+
+**Garanties :** jamais dans le code source · jamais dans les logs CloudWatch · jamais dans le state Terraform · jamais dans l'image Docker
+
+---
+
+## SLIDE 14 — Supervision CloudWatch + SNS
+
+**Titre :** Supervision — AWS CloudWatch + Notifications SNS
+
+**Logs en temps réel :**
+Groupe `/ecs/mini-chat-backend` — logs de démarrage, requêtes HTTP, erreurs — rétention 7 jours.
+
+**4 alarmes CloudWatch actives (terraform/monitoring.tf) :**
+
+| Alarme | Métrique | Seuil | Action |
+|--------|---------|-------|--------|
+| Container stoppé | ECS RunningTaskCount | < 1 pendant 1 minute | Email SNS |
+| Erreurs 5xx élevées | ALB HTTPCode_ELB_5XX_Count | > 10 sur 5 minutes | Email SNS |
+| CPU ECS élevé | ECS CPUUtilization | > 80% pendant 10 minutes | Email SNS |
+| Disque RDS faible | RDS FreeStorageSpace | < 2 Go | Email SNS |
+
+**Notification SNS :**
+Un topic AWS SNS reçoit les alarmes et envoie un email à babikiribrahimalkhalil@gmail.com.
+La politique SNS autorise explicitement `cloudwatch.amazonaws.com` à publier dans le topic.
+
+**Visuel :** captures d'écran CloudWatch — groupe de journaux + liste des alarmes (états OK/ALARM)
+
+---
+
+## SLIDE 15 — SLA et indicateurs de service
+
+**Titre :** Statistiques de services — KPI et SLA (BC03)
+
+**Distinction métrique / indicateur / KPI / SLA :**
+
+| Terme | Exemple dans ce projet |
+|-------|----------------------|
+| Métrique | 47 requêtes HTTP reçues, CPU à 12%, 3 messages envoyés |
+| Indicateur | Taux d'erreurs 5xx sur 24h, temps de réponse moyen |
+| KPI | Disponibilité mensuelle 99%, p95 < 500 ms |
+| SLA | Service accessible 99% du temps, restauration < 2h |
+
+**SLA définis et couverts par les alarmes :**
+
+| KPI | Objectif SLA | Alarme configurée |
+|-----|-------------|------------------|
+| Disponibilité mensuelle | ≥ 99% | RunningTaskCount < 1 → ALARM + email |
+| Taux d'erreurs | < 2% HTTP 5xx / 24h | HTTPCode_ELB_5XX_Count > 10 → ALARM |
+| Ressources CPU | < 80% | CPUUtilization > 80% 10 min → ALARM |
+| Stockage données | > 2 Go libres | FreeStorageSpace < 2 Go → ALARM |
+| Restauration | < 2 heures | Rolling update automatique ou redeploi |
+
+---
+
+## ═══════════════════════════════════════════
+## SECTION 4 — EXEMPLE SIGNIFICATIF DU TRAVAIL RÉALISÉ
+## (Référentiel ASD — canevas diaporama point 4)
+## ═══════════════════════════════════════════
+
+---
+
+## SLIDE 16 — Exemple significatif : incident réel résolu
+
+**Titre :** Exemple de travail réalisé — Analyse et résolution d'incident
+
+**Incident : Mixed Content bloquant toute l'application**
+
+**Symptôme observé par l'utilisateur :**
+Page HTTPS affichée, mais impossible de s'inscrire ou se connecter. Console du navigateur :
+```
+Mixed Content: The page at 'https://chat.ibrahimbabikir.fr' was loaded over HTTPS,
+but requested an insecure XMLHttpRequest endpoint 'http://chat.ibrahimbabikir.fr:3000/auth/register'
+```
+
+**Démarche d'investigation (3 étapes) :**
+1. Console navigateur → message Mixed Content → URL construite avec `http://` hardcodé
+2. Lecture de `config.js` → `window.location.hostname` → reconstruction `http://hostname:3000`
+3. Identification du bug : en HTTPS, le navigateur bloque toute requête HTTP sortante
+
+**Cause identifiée :**
+`config.js` construisait l'URL de l'API avec `http://` + nom d'hôte + `:3000` pour tout ce qui n'était pas localhost. Sur HTTPS, cette URL http:// est bloquée par le navigateur (Mixed Content policy).
+
+**Correction appliquée dans `config.js` :**
+```javascript
+const getApiUrl = () => {
+  const hostname = window.location.hostname;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'http://localhost:3000';
+  }
+  return ''; // URLs relatives en production — compatibles HTTP et HTTPS
+};
+```
+
+**Leçon retenue :**
+En production derrière un ALB, les URLs relatives suffisent. Hardcoder le protocole ou le port crée une dépendance fragile à l'environnement.
+
+---
+
+## ═══════════════════════════════════════════
+## SECTION 5 — EXEMPLE DE RECHERCHE EFFECTUÉE
+## (Référentiel ASD — canevas diaporama point 5)
+## ═══════════════════════════════════════════
+
+---
+
+## SLIDE 17 — Exemple de recherche : blocs `moved` Terraform
+
+**Titre :** Exemple de recherche — Renommer des ressources Terraform sans les détruire
+
+**Problème constaté (point de départ de la recherche) :**
+Lors de la migration vers ECS Fargate, les security groups ont été renommés pour plus de lisibilité.
+Terraform a voulu détruire et recréer les ressources renommées → coupure de service, perte des configurations.
+
+```
+aws_security_group.alb  →  aws_security_group.alb_sg
+# Terraform par défaut : destroy alb + create alb_sg → downtime !
+```
+
+**Recherche effectuée :**
+Documentation Terraform officielle sur la gestion du state → découverte des blocs `moved {}`.
+
+**Découverte — blocs `moved` dans moved.tf :**
+```hcl
+moved {
+  from = aws_security_group.alb
+  to   = aws_security_group.alb_sg
 }
 ```
 
-### 9.3 CloudWatch Alarms
+Terraform met à jour uniquement le state — aucune ressource AWS n'est détruite ni recréée.
 
-Alertes automatiques par email si :
-- CPU ECS > 80% pendant 10 minutes
-- Container passe en etat STOPPED (TaskCount = 0)
-- Nombre d'erreurs HTTP 5xx > seuil defini
+**Résultat :** renommage propre de 5 ressources sans coupure, sans perte de données.
 
-### 9.4 Auto Scaling ECS
-
-Augmenter automatiquement le nombre de containers selon la charge :
-- Minimum : 1 container
-- Maximum : 3 containers
-- Declencheur : CPU > 70% ou memoire > 80%
+**Deuxième recherche — `terraform state rm` + `terraform import` :**
+Conflict sur `aws_db_subnet_group` présent deux fois dans le state.
+Solution : supprimer l'entrée en double du state puis ré-importer la ressource existante en AWS.
+Cette commande a été intégrée directement dans le pipeline CI/CD (`ci-cd.yml`) pour éviter la récurrence.
 
 ---
 
-## 10. PLANNING ET LIVRABLES
-
-### 10.1 Phase 0 — Developpement local (Mars 2026)
-
-| Semaine | Travaux realises |
-|---------|-----------------|
-| Semaine 1 | Cahier des charges initial, architecture, choix techniques |
-| Semaine 1 | Developpement backend minimal : Express, route `/`, MySQL |
-| Semaine 2 | Authentification : bcrypt, JWT, routes `/auth/register` et `/auth/login` |
-| Semaine 2 | Tests API avec Thunder Client (VS Code) |
-| Semaine 3 | Docker Compose : backend + MySQL |
-| Semaine 3 | Script d'automatisation `start.bat` pour lancement local |
-| Semaine 3 | Frontend HTML/CSS/JS (connexion, messages, design glassmorphism) |
-
-### 10.2 Phase 1 — Infrastructure AWS EC2 (Avril 2026)
-
-| Semaine | Travaux realises |
-|---------|-----------------|
-| Semaine 4 | Terraform v1 : VPC + EC2 + RDS + Security Groups |
-| Semaine 4 | Pipeline CI/CD GitHub Actions (premiere version) |
-| Semaine 4 | Dockerfile multi-stage Alpine (image 6x plus legere) |
-| Semaine 4 | Documentation initiale |
-
-### 10.3 Phase 2 — ECS Fargate (Mai 2026)
-
-| Date | Travaux realises |
-|------|-----------------|
-| Mai 2026 | Migration EC2 -> ECS Fargate (suppression SSH, user_data) |
-| Mai 2026 | Ajout ECR avec pipeline build -> push automatise |
-| Mai 2026 | ALB avec rolling update et health checks |
-| Mai 2026 | SSM Parameter Store pour tous les secrets |
-| Mai 2026 | CloudWatch pour les logs de production |
-| Mai 2026 | Schema auto-cree au demarrage (plus de setup manuel) |
-| Mai 2026 | Resolution des conflits Terraform (moved blocks, state rm + import) |
-| Mai 2026 | Mise a jour complete documentation |
-
-### 10.4 Phase 3 — Prevue
-
-| Element | Statut |
-|---------|--------|
-| HTTPS avec mini-chat.dev | Planifie |
-| ECR Lifecycle Policy | Planifie |
-| CloudWatch Alarms | Planifie |
-| Auto Scaling ECS | Planifie |
-
-### 10.5 Livrables
-
-| Livrable | Localisation | Statut |
-|----------|--------------|--------|
-| Code source | github.com/babs235/mini-chat | Disponible |
-| Cahier des charges | `CAHIER_DES_CHARGES_COMPLET.md` | Complet |
-| Guide de deploiement | `GUIDE_DEPLOIEMENT.md` | Complet |
-| Infrastructure as Code | `terraform/` | Deploye |
-| Pipeline CI/CD | `.github/workflows/ci-cd.yml` | Operationnel |
-| Application en production | URL ALB eu-west-3 | En ligne |
-| Monitoring production | CloudWatch `/ecs/mini-chat-backend` | Operationnel |
+## ═══════════════════════════════════════════
+## SECTION 6 — SYNTHÈSE ET CONCLUSION
+## (Référentiel ASD — canevas diaporama point 6)
+## ═══════════════════════════════════════════
 
 ---
 
-## 11. RETOUR D'EXPERIENCE
+## SLIDE 18 — Difficultés rencontrées et solutions
 
-### 11.1 Problemes rencontres et solutions
+**Titre :** Difficultés rencontrées — Problèmes réels résolus
 
-| Probleme | Cause | Solution |
-|----------|-------|----------|
-| Containers ne demarraient pas sur EC2 | user_data asynchrone, .env avec valeurs bidon | Migration vers ECS Fargate |
-| Image ECR jamais utilisee | docker-compose.yml buildait depuis le code source | Task Definition ECS pointe directement vers ECR |
-| Terraform renommage de ressources | Changement de noms -> destroy + recreate | Blocs `moved` dans Terraform |
-| Security group non modifiable | Description immuable dans AWS | Restaurer la description originale |
-| DB Subnet Group conflit de state | Double entree en state Terraform | `terraform state rm` + `terraform import` dans le pipeline |
-| Quotas IAM depasses | 10 politiques managees maximum par utilisateur | Suppression des doublons et politiques inutiles |
-| Schema DB non initialise sur RDS | init.sql monte dans Docker local uniquement | Fonction `initSchema()` au demarrage du backend |
-| Secrets en minuscules dans pipeline | GitHub Secrets est sensible a la casse | Corriger `jwt_secret` -> `JWT_SECRET` |
+| Difficulté | Cause | Solution |
+|------------|-------|----------|
+| Containers ne démarraient pas sur EC2 | `user_data` asynchrone — scripts non terminés au moment du déploiement | Migration vers ECS Fargate : plus de user_data, container démarre directement depuis ECR |
+| Renommage Terraform → destroy + recreate | Terraform interprète un renommage comme une destruction | Blocs `moved {}` dans moved.tf : state mis à jour sans toucher aux ressources AWS |
+| DB Subnet Group conflit dans le state | Double entrée Terraform après migration | `terraform state rm` + `terraform import` intégrés dans le pipeline |
+| Schema DB non initialisé sur RDS | init.sql uniquement local, RDS inaccessible directement | `initSchema()` non bloquant au démarrage du backend |
+| Mixed Content bloquant toute l'application | config.js construisait `http://hostname:3000` sur une page HTTPS | URLs relatives vides en production — le navigateur gère le protocole |
+| ECS service en erreur après ajout HTTPS | ECS démarrait avant que le listener HTTPS soit créé par Terraform | `depends_on = [aws_lb_listener.http, aws_lb_listener.https]` dans ecs.tf |
 
-### 11.2 Comparaison architectures Phase 1 vs Phase 2
+---
 
-| Critere | Phase 1 (EC2) | Phase 2 (ECS Fargate) |
-|---------|---------------|----------------------|
-| Deploiement | SSH + docker compose | Pipeline automatique |
-| Mise a jour code | Connexion manuelle | Push Git suffit |
-| Secrets | .env en clair | SSM chiffre |
-| Redemarrage si crash | Manuel | Automatique (ECS Service) |
+## SLIDE 19 — Comparaison architectures et compétences ASD
+
+**Titre :** Evolution et compétences mobilisées
+
+**Phase 1 → Phase 2 :**
+
+| Critère | Phase 1 — EC2 | Phase 2 — ECS Fargate |
+|---------|--------------|----------------------|
+| Déploiement | SSH + docker compose | git push → automatique |
+| Secrets | .env en clair | SSM SecureString AES-256 |
+| Redémarrage si crash | Manuel | Automatique (ECS Service) |
 | SSH requis | Oui | Non |
-| Image Docker en production | Buildee sur EC2 | Depuis ECR (buildee en CI) |
-| Rolling update | Non | Oui (ALB + ECS) |
-| Coupure au deploiement | Oui (~30s) | Non (zero downtime) |
+| Tracabilité | Aucune | Hash commit exact sur chaque image |
+| Rolling update | Non — coupure ~30s | Oui — zéro downtime |
+| Tests bloquants | Non | Oui — 9 Jest + smoke tests |
+| HTTPS | Non | Oui — ACM + TLS 1.3 |
+| Alertes | Non | Oui — 4 alarmes CloudWatch + SNS email |
 
-### 11.3 Competences ASD mobilisees
+**Compétences ASD couvertes :**
 
-| Competence ASD | Comment elle est couverte |
+| Compétence ASD | Couverture dans le projet |
 |----------------|--------------------------|
-| Automatiser le deploiement d'une infrastructure | Terraform + GitHub Actions : push = deploiement complet |
-| Gerer des containers | Docker multi-stage, ECR, ECS Fargate, Docker Compose local |
-| Exploiter une solution de supervision (BC03) | CloudWatch : logs ECS, metriques ALB/ECS/RDS, analyse d'incidents |
-| Securiser l'infrastructure | SSM secrets, pas de SSH, moindre privilege, XSS + SQL Injection |
-| Infrastructure as Code | Terraform (modules, state S3, moved blocks, import, variables) |
-| CI/CD | GitHub Actions 3 jobs, secrets, tracabilite par hash de commit |
-| Repondre a un incident | Rolling update, rollback manuel, analyse CloudWatch |
+| Automatiser la création de serveurs | Terraform IaC — toute l'infra en code |
+| Automatiser le déploiement | GitHub Actions 4 jobs — push = déploiement complet |
+| Sécuriser l'infrastructure | SSM, pas de SSH, Security Groups, HTTPS, tests CI |
+| Mettre en production dans le cloud | ECS Fargate AWS eu-west-3, ALB, ACM |
+| Préparer un environnement de test | Jest 9 tests + smoke tests Docker pre-prod |
+| Gérer le stockage des données | RDS MySQL subnet privé, backup 1 jour, logs CloudWatch 7 jours |
+| Gérer des containers | Docker multi-stage, ECS Fargate, ECR, rolling update |
+| Définir des statistiques de services | BC03 : KPI/SLA + 4 alarmes CloudWatch + SNS |
+| Exploiter une solution de supervision | CloudWatch logs + alarmes + incident réel résolu |
 
 ---
 
-## STRUCTURE DU PROJET
+## SLIDE 20 — Conclusion
 
-```
-mini-chat/
-├── .github/workflows/
-│   └── ci-cd.yml              # Pipeline : tests -> ECR -> Terraform -> ECS
-├── backend/
-│   ├── dockerfile.backend     # Multi-stage Alpine
-│   ├── server.js              # Entree Express + metriques
-│   └── src/
-│       ├── config/database.js # Pool MySQL + migration auto au demarrage
-│       ├── middleware/
-│       │   ├── auth.js        # Verification JWT
-│       │   └── metrics.js     # Metriques Prometheus (http, users, messages)
-│       └── routes/
-│           ├── auth.js        # Register / Login
-│           └── messages.js    # GET / POST messages
-├── database/
-│   └── init.sql               # Schema SQL (reference)
-├── docker/
-│   ├── docker-compose.yml     # Local uniquement (+ Prometheus + Grafana)
-│   └── .env.example           # Template variables locales
-└── terraform/
-    ├── main.tf                # VPC, subnets, security groups, RDS
-    ├── ecs.tf                 # IAM, SSM, CloudWatch, ECS, ALB
-    ├── variables.tf           # Variables
-    ├── outputs.tf             # Outputs
-    ├── moved.tf               # Historique renommages
-    └── provider.tf            # Provider AWS + state S3
-```
+**Titre :** Synthèse et conclusion
+
+**Satisfactions :**
+- Architecture ECS Fargate moderne — zéro gestion de serveur, zéro SSH, zéro downtime
+- Un seul `git push` déclenche tests, smoke tests, build et déploiement automatiquement
+- Secrets 100% sécurisés : du code source jusqu'au container en production
+- HTTPS opérationnel sur un domaine propre (chat.ibrahimbabikir.fr) avec TLS 1.3
+- Supervision active : 4 alarmes CloudWatch liées aux SLA, notifications email par SNS
+- Tracabilité totale : on sait à tout moment quel commit exact tourne en production
+
+**Difficultés principales :**
+- Pipeline passait en vert sur EC2 mais l'application ne répondait pas (user_data asynchrone)
+- Mixed Content HTTPS bloquait toute l'application à cause d'URLs hardcodées
+- Terraform voulait détruire des ressources lors de simples renommages
+- Container s'arrêtait immédiatement au démarrage (RDS pas encore prêt)
+- Quota IAM de 10 politiques managées atteint en cours de migration
+
+**Ce que j'ai appris :**
+ECS Fargate résout structurellement les problèmes de déploiement continu sur EC2.
+Terraform est puissant mais exige une gestion rigoureuse du state dès qu'on renomme des ressources.
+Le frontend doit être pensé pour plusieurs environnements dès le départ (URLs relatives, pas de hardcoding).
+
+**Évolutions prévues :**
+- Auto Scaling ECS (min 1 / max 3 containers selon charge CPU)
+- Environnement de staging (branche `staging` → ECS service dédié)
+- ECR Lifecycle Policy (garder les 10 dernières images, purger le reste)
 
 ---
 
-**Document redige par** : Babikir Ibrahim
-**Formation** : Administrateur Systemes et DevOps (ASD)
-**Version** : 4.0 — Architecture ECS Fargate
-**Date** : Mai 2026
+*Présentation Soutenance ASD Niveau 6 — Babikir Ibrahim — Mai 2026*
+*Référentiel : RE TP-01414-01 — Canevas diaporama respecté intégralement*
+*Projet complet : github.com/babs235/mini-chat — Application : https://chat.ibrahimbabikir.fr*

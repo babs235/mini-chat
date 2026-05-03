@@ -16,11 +16,10 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "mini-chat-tfstate-babs235"
-    key            = "prod/terraform.tfstate"
-    region         = "eu-west-3"
-    encrypt        = true
-    dynamodb_table = "mini-chat-tflock"
+    bucket  = "mini-chat-tfstate-babs235"
+    key     = "prod/terraform.tfstate"
+    region  = "eu-west-3"
+    encrypt = true
   }
 }
 

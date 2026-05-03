@@ -9,6 +9,20 @@ resource "aws_sns_topic_subscription" "email" {
   endpoint  = "babikiribrahimalkhalil@gmail.com"
 }
 
+resource "aws_sns_topic_policy" "alerts_policy" {
+  arn = aws_sns_topic.alerts.arn
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "cloudwatch.amazonaws.com" }
+      Action    = "SNS:Publish"
+      Resource  = aws_sns_topic.alerts.arn
+    }]
+  })
+}
+
 # ── ALARMES CLOUDWATCH ────────────────────────────────────────────
 resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped" {
   alarm_name          = "mini-chat-ecs-task-stopped"

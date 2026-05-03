@@ -4,8 +4,13 @@
 
 # URL de l'application — à utiliser dans le navigateur
 output "app_url" {
-  description = "URL publique de l'application via l'ALB"
-  value       = "http://${aws_lb.mini_chat.dns_name}"
+  description = "URL publique de l'application (HTTPS)"
+  value       = "https://chat.ibrahimbabikir.fr"
+}
+
+output "acm_validation_cname" {
+  description = "CNAME a ajouter dans IONOS pour valider le certificat SSL"
+  value       = aws_acm_certificate.mini_chat.domain_validation_options
 }
 
 # Endpoint RDS — utile pour les migrations manuelles

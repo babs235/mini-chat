@@ -147,11 +147,47 @@ resource "aws_lb_target_group" "backend" {
   }
 }
 
-# Listener : l'ALB écoute sur le port 80 et forward vers le target group
+# ── ACM : certificat SSL pour chat.ibrahimbabikir.fr ────────────
+resource "aws_acm_certificate" "mini_chat" {
+  domain_name       = "chat.ibrahimbabikir.fr"
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_acm_certificate_validation" "mini_chat" {
+  certificate_arn = aws_acm_certificate.mini_chat.arn
+
+  timeouts {
+    create = "30m"
+  }
+}
+
+# Listener HTTP : redirige tout le trafic vers HTTPS (301)
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.mini_chat.arn
   port              = 80
   protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+# Listener HTTPS : trafic chiffré vers les containers ECS
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.mini_chat.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = aws_acm_certificate_validation.mini_chat.certificate_arn
 
   default_action {
     type             = "forward"

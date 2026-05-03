@@ -216,6 +216,6 @@ resource "aws_ecs_service" "backend" {
     container_port   = 3000
   }
 
-  # Le service attend que l'ALB listener soit prêt avant de démarrer
-  depends_on = [aws_lb_listener.http]
+  # Le service attend que les deux listeners ALB soient prêts avant de démarrer
+  depends_on = [aws_lb_listener.http, aws_lb_listener.https]
 }

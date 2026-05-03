@@ -1,3 +1,15 @@
+# ── SNS : canal de notification par email ────────────────────────
+resource "aws_sns_topic" "alerts" {
+  name = "mini-chat-alerts"
+}
+
+resource "aws_sns_topic_subscription" "email" {
+  topic_arn = aws_sns_topic.alerts.arn
+  protocol  = "email"
+  endpoint  = "babikiribrahimalkhalil@gmail.com"
+}
+
+# ── ALARMES CLOUDWATCH ────────────────────────────────────────────
 resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped" {
   alarm_name          = "mini-chat-ecs-task-stopped"
   comparison_operator = "LessThanThreshold"
@@ -9,6 +21,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped" {
   threshold           = 1
   alarm_description   = "Aucun container ECS en cours d execution - service indisponible"
   treat_missing_data  = "breaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
     ClusterName = aws_ecs_cluster.mini_chat.name
@@ -27,6 +40,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
   threshold           = 10
   alarm_description   = "Taux d erreurs HTTP 5xx depasse le seuil sur 5 minutes"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
     LoadBalancer = aws_lb.mini_chat.arn_suffix
@@ -44,6 +58,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
   threshold           = 80
   alarm_description   = "CPU ECS superieur a 80 pourcent pendant 10 minutes"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
     ClusterName = aws_ecs_cluster.mini_chat.name
@@ -62,6 +77,7 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
   threshold           = 2000000000
   alarm_description   = "Espace disque RDS inferieur a 2 Go - risque de saturation"
   treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
 
   dimensions = {
     DBInstanceIdentifier = aws_db_instance.mini_chat_db.identifier

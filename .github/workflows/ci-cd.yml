@@ -67,14 +67,86 @@ jobs:
           docker push $REGISTRY/$REPOSITORY:latest
 
 
-  # ── JOB 3 : DEPLOY INFRASTRUCTURE + ECS ──────────────────────────
+  # ── JOB 3 : SMOKE TESTS SUR L'IMAGE DOCKER (PRÉ-PROD) ───────────
+  # Valide l'image AVANT tout déploiement en la démarrant comme container.
+  # Même artefact Docker qu'en production → conformité pré-prod/prod.
+  smoke-tests:
+    name: Smoke tests image Docker (pré-prod)
+    runs-on: ubuntu-latest
+    needs: build-push
+
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Pull image from ECR
+        env:
+          REGISTRY:   ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: mini-chat-backend
+          TAG:        ${{ github.sha }}
+        run: docker pull $REGISTRY/$REPOSITORY:$TAG
+
+      - name: Start container
+        env:
+          REGISTRY:   ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: mini-chat-backend
+          TAG:        ${{ github.sha }}
+        run: |
+          docker run -d \
+            --name mini-chat-preprod \
+            -p 3000:3000 \
+            -e NODE_ENV=test \
+            -e DB_HOST=127.0.0.1 \
+            -e DB_USER=root \
+            -e DB_NAME=mini_chat \
+            -e DB_PASSWORD=test \
+            -e JWT_SECRET=test_secret \
+            $REGISTRY/$REPOSITORY:$TAG
+          for i in $(seq 1 10); do
+            curl -sf http://localhost:3000/ && break
+            sleep 2
+          done
+
+      - name: Smoke tests HTTP
+        run: |
+          # Health check : GET / → 200
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
+          [ "$STATUS" = "200" ] || (echo "FAIL health check: $STATUS" && exit 1)
+          echo "OK  GET /  → 200"
+
+          # Validation sans DB : POST /auth/register corps vide → 400
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/auth/register \
+            -H "Content-Type: application/json" -d '{}')
+          [ "$STATUS" = "400" ] || (echo "FAIL validation: $STATUS" && exit 1)
+          echo "OK  POST /auth/register {} → 400"
+
+          # Protection JWT : GET /messages sans token → 403
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/messages)
+          [ "$STATUS" = "403" ] || (echo "FAIL JWT protection: $STATUS" && exit 1)
+          echo "OK  GET /messages (no token) → 403"
+
+          echo "Smoke tests pré-prod : OK"
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f mini-chat-preprod || true
+
+
+  # ── JOB 4 : DEPLOY INFRASTRUCTURE + ECS ──────────────────────────
   # Terraform crée / met à jour toute l'infra.
   # TF_VAR_image_tag=${{ github.sha }} → ECS déploie exactement
   # la version buildée dans le job précédent (tracabilité totale).
   deploy:
     name: Deploy via Terraform
     runs-on: ubuntu-latest
-    needs: build-push
+    needs: smoke-tests
 
     steps:
       - uses: actions/checkout@v4

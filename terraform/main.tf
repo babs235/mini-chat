@@ -163,10 +163,11 @@ resource "aws_db_instance" "mini_chat_db" {
   vpc_security_group_ids = [aws_security_group.db_sg.id]
   db_subnet_group_name   = aws_db_subnet_group.mini_chat.name
 
-  backup_retention_period = 1
-  backup_window           = "03:00-04:00"
-  skip_final_snapshot     = true
-  monitoring_interval     = 0
+  backup_retention_period   = 7
+  backup_window             = "03:00-04:00"
+  skip_final_snapshot       = false
+  final_snapshot_identifier = "mini-chat-db-final-snapshot"
+  monitoring_interval       = 0
 
   tags = { Name = "mini-chat-database" }
 }

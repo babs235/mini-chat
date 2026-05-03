@@ -69,7 +69,7 @@ resource "aws_route_table_association" "public_2" {
 # Ports 80 et 443 ouverts au public — tout le reste est bloqué
 resource "aws_security_group" "alb_sg" {
   name        = "mini-chat-alb-sg"
-  description = "ALB: HTTP et HTTPS entrant"
+  description = "ALB: HTTP public entrant"
   vpc_id      = aws_vpc.mini_chat_vpc.id
 
   ingress {
@@ -125,7 +125,7 @@ resource "aws_security_group" "ecs_sg" {
 # MySQL accessible uniquement depuis les containers ECS — jamais depuis internet
 resource "aws_security_group" "db_sg" {
   name        = "mini-chat-db-sg"
-  description = "RDS MySQL: accès depuis ECS uniquement"
+  description = "Security group for RDS MySQL - VPC access only"
   vpc_id      = aws_vpc.mini_chat_vpc.id
 
   ingress {

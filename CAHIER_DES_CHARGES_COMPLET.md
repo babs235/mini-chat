@@ -62,7 +62,7 @@ Mini-Chat est une application de messagerie interne développée dans le cadre d
 **Périmètre du projet :**
 Projet réalisé en formation, de la conception à la mise en production sur AWS, couvrant l'ensemble des compétences ASD : infrastructure, conteneurisation, déploiement continu, sécurité et supervision.
 
-**Visuel :** capture d'écran de l'interface Mini-Chat (page de connexion + page de messagerie)
+**Visuel :** insérer `app-connexion-https.png` (page de connexion avec cadenas SSL) + `app-messagerie.png` (page de messagerie avec message envoyé)
 
 ---
 
@@ -134,8 +134,8 @@ Sur EC2, le pipeline passait en vert mais l'application ne répondait pas. Aprè
 | Livrable | Statut |
 |----------|--------|
 | Code source complet | ✅ github.com/babs235/mini-chat |
-| Cahier des charges | ✅ CAHIER_DES_CHARGES_COMPLET.md |
-| Guide de déploiement | ✅ GUIDE_DEPLOIEMENT.md |
+| Cahier des charges | ✅ |
+| Guide de déploiement | ✅ |
 | Infrastructure as Code | ✅ terraform/ (7 fichiers) |
 | Pipeline CI/CD | ✅ .github/workflows/ci-cd.yml (4 jobs) |
 | Application HTTPS en production | ✅ https://chat.ibrahimbabikir.fr |
@@ -311,6 +311,8 @@ On teste le même artefact (hash SHA identique) qui partira en production.
 **Limite assumée des smoke tests :** les variables DB sont fictives — la connectivité MySQL réelle n'est pas testée ici.
 Ce cas est couvert après déploiement : l'ALB vérifie `GET /` avant de basculer le trafic. Si le container ne peut pas joindre RDS, il échoue au démarrage, le health check ALB ne passe pas, et l'ancien container reste actif (rollback automatique).
 
+**Visuel :** insérer `github-actions-4-jobs-verts.png` (pipeline GitHub Actions — 4 jobs tous verts)
+
 ---
 
 ## SLIDE 11 — Docker multi-stage
@@ -366,6 +368,8 @@ Stage 2 — final (node:20-alpine)
 
 **Résultat :** https://chat.ibrahimbabikir.fr — cadenas SSL, TLS 1.3, redirection HTTP automatique.
 
+**Visuel :** insérer `app-connexion-https.png` (navigateur — cadenas vert + "Certificat valide")
+
 ---
 
 ## SLIDE 13 — Gestion des secrets
@@ -414,7 +418,11 @@ Groupe `/ecs/mini-chat-backend` — logs de démarrage, requêtes HTTP, erreurs 
 Un topic AWS SNS reçoit les alarmes et envoie un email à babikiribrahimalkhalil@gmail.com.
 La politique SNS autorise explicitement `cloudwatch.amazonaws.com` à publier dans le topic.
 
-**Visuel :** captures d'écran CloudWatch — groupe de journaux + liste des alarmes (états OK/ALARM)
+**Visuel :**
+- `cloudwatch-alarmes-ok.png` — vue d'ensemble CloudWatch : 4 alarmes actives, En alarme : 0, OK : 4
+- `cloudwatch-logs-demarrage.png` — logs /ecs/mini-chat-backend : "Server started on port 3000" + "Schema initialized"
+- `ecs-service-actif.png` — service ECS mini-chat-backend : Statut Actif, 1 tâche en cours, 1 Sain
+- `ecs-metriques-cpu-ram.png` — métriques Container Insights : CPU max 16.2%, RAM max 2.27%
 
 ---
 

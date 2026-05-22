@@ -1,0 +1,40 @@
+name: Stop RDS (anti-auto-restart AWS)
+
+# AWS redémarre automatiquement un RDS stoppé manuellement après 7 jours.
+# Ce workflow tourne toutes les 6 jours pour le re-stopper avant ce délai.
+on:
+  schedule:
+    - cron: '0 3 */6 * *'   # toutes les 6 jours à 3h du matin UTC
+  workflow_dispatch:          # déclenchement manuel possible depuis GitHub Actions
+
+jobs:
+  stop-rds:
+    name: Stop RDS mini-chat-db
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
+
+      - name: Vérifier l'état du RDS
+        id: check
+        run: |
+          STATUS=$(aws rds describe-db-instances \
+            --db-instance-identifier mini-chat-db \
+            --query "DBInstances[0].DBInstanceStatus" \
+            --output text)
+          echo "status=$STATUS" >> $GITHUB_OUTPUT
+          echo "RDS status : $STATUS"
+
+      - name: Stopper le RDS si disponible
+        if: steps.check.outputs.status == 'available'
+        run: |
+          aws rds stop-db-instance --db-instance-identifier mini-chat-db
+          echo "RDS stoppé."
+
+      - name: Déjà stoppé
+        if: steps.check.outputs.status != 'available'
+        run: echo "RDS déjà en état '${{ steps.check.outputs.status }}' — rien à faire."

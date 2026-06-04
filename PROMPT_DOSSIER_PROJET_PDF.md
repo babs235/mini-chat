@@ -11,6 +11,7 @@
 > Nouvelle page à chaque section principale (##).
 > Blocs de code : fond gris très clair, police monospace taille 9, bordure gauche bleue fine.
 > Tableaux : alternance blanc / gris clair, bordures fines.
+> Aux endroits marqués [CAPTURE : description], laisser un espace réservé avec un cadre gris clair et la légende indiquée — le candidat y insèrera la vraie capture d'écran.
 > Ne pas modifier le style d'écriture — le document est rédigé à la première personne, conserver tel quel.
 
 ---
@@ -36,19 +37,19 @@
 
 ## 1. Compétences du référentiel couvertes par le projet
 
-Ce projet couvre les trois blocs de compétences du titre ASD. Je liste ci-dessous chaque compétence avec ce que j'ai mis en place concrètement.
+Ce projet couvre les trois blocs de compétences du titre ASD. Voici ce que j'ai mis en place concrètement pour chacune.
 
 **Bloc 1 — Automatiser le déploiement d'une infrastructure dans le cloud**
 
-Pour la création automatisée de l'infrastructure, j'ai tout écrit en Terraform : Cloud Run, Cloud SQL, Secret Manager, Artifact Registry, les comptes de service. Rien n'est créé à la main dans la console GCP — si je supprime tout et que je relance `terraform apply`, je retrouve exactement la même infrastructure. Pour le déploiement automatisé, le Job 4 de mon pipeline GitHub Actions lance `terraform apply` sans aucune intervention manuelle à chaque fois que je pousse du code sur la branche main. Pour la sécurité, les secrets ne sont jamais dans le code — ils sont dans Google Secret Manager, la base de données n'est accessible que via un socket authentifié par le compte de service, et il n'y a aucun accès SSH possible (Cloud Run est serverless). L'application est accessible en production à l'adresse https://mini-chat-backend-py4vurg4oq-ew.a.run.app, déployée sur Google Cloud Platform en région europe-west1.
+J'ai écrit toute l'infrastructure en Terraform (5 fichiers HCL) : Cloud Run, Cloud SQL, Secret Manager, Artifact Registry, comptes de service IAM. Rien n'est créé à la main dans la console GCP — si je supprime tout et relance `terraform apply`, je retrouve exactement la même infrastructure. Le Job 4 de mon pipeline GitHub Actions lance ce `terraform apply` automatiquement à chaque `git push main`. Pour la sécurité, les secrets ne sont jamais dans le code — ils sont dans Google Secret Manager, la connexion à la base de données passe par un socket authentifié par le compte de service, et il n'existe aucun accès SSH (Cloud Run est serverless). L'application est accessible en production sur https://mini-chat-backend-py4vurg4oq-ew.a.run.app.
 
 **Bloc 2 — Déployer en continu une application**
 
-Pour les tests, j'ai écrit 10 tests unitaires Jest qui couvrent les validations d'entrée, l'authentification et la protection JWT. J'ai aussi 3 smoke tests dans le pipeline qui vérifient que l'image Docker répond correctement avant d'être déployée. La couverture globale est à 60% de lignes — pas parfait, mais les chemins critiques (validation, auth, protection des routes) sont tous testés. Pour le stockage, la base MySQL tourne sur Cloud SQL, le schéma des tables est créé automatiquement au démarrage de l'application (je n'ai pas besoin de me connecter manuellement à la base). Les containers sont gérés avec Docker multi-stage Alpine (~180 MB) stockés dans Artifact Registry, déployés sur Cloud Run avec rolling update. Le pipeline complet (tests → build → smoke tests → déploiement) tourne automatiquement à chaque `git push main`.
+J'ai 10 tests unitaires Jest qui couvrent les validations, l'authentification et la protection JWT, plus 3 smoke tests dans le pipeline qui vérifient que l'image Docker répond correctement avant d'être déployée. La couverture est à 60% des lignes — les chemins critiques sont tous couverts. La base MySQL tourne sur Cloud SQL, le schéma se crée automatiquement au démarrage. Les images Docker sont construites en multi-stage Alpine (~180 MB), stockées dans Artifact Registry, et déployées sur Cloud Run avec rolling update. Le pipeline complet (tests → build → smoke tests → déploiement) tourne sans aucune intervention manuelle.
 
 **Bloc 3 — Superviser les services déployés**
 
-J'ai mis en place 2 alertes dans Cloud Monitoring : un uptime check qui vérifie que l'URL répond toutes les 5 minutes, et une alerte sur les erreurs HTTP 5xx. Si le service tombe ou commence à rendre des erreurs, je reçois un email. J'utilise Cloud Logging pour voir les logs du container en temps réel — c'est d'ailleurs grâce aux logs que j'ai résolu un bug Mixed Content HTTPS (détaillé en section 6).
+J'ai configuré 2 alertes dans Cloud Monitoring : un uptime check qui vérifie que l'URL répond toutes les 5 minutes, et une alerte sur les erreurs HTTP 5xx. Si quelque chose ne va pas, je reçois un email. J'utilise Cloud Logging pour voir les logs du container en temps réel. C'est grâce aux logs que j'ai résolu un bug Mixed Content HTTPS (détaillé en section 6).
 
 ---
 
@@ -56,44 +57,47 @@ J'ai mis en place 2 alertes dans Cloud Monitoring : un uptime check qui vérifie
 
 ## 2. Cahier des charges
 
-### Qu'est-ce que ce projet ?
+### Le projet
 
-Mini-Chat est une application de messagerie accessible depuis un navigateur. Les utilisateurs s'inscrivent, se connectent, et peuvent envoyer et lire des messages. L'application en elle-même est volontairement simple — deux tables en base de données, quelques routes d'API, une interface HTML basique. Ce n'est pas l'objectif. L'objectif, c'est tout ce qu'il y a autour : conteneuriser l'application, automatiser son déploiement, sécuriser les accès, surveiller que ça fonctionne, et faire en sorte qu'un simple `git push` suffise à mettre à jour la production sans toucher à rien manuellement.
+Mini-Chat est une application de messagerie accessible depuis un navigateur. Les utilisateurs s'inscrivent, se connectent, et peuvent envoyer et lire des messages. L'application elle-même est volontairement simple — deux tables en base de données, quelques routes d'API, une interface HTML. Ce n'est pas l'objectif. L'objectif, c'est tout ce qu'il y a autour : conteneuriser l'application, automatiser son déploiement, sécuriser les accès, surveiller que ça fonctionne.
+
+[CAPTURE : Page de connexion de l'application en production — montrer l'URL https://mini-chat-backend-py4vurg4oq-ew.a.run.app et le cadenas HTTPS dans le navigateur]
 
 ### Comment le projet a évolué
 
-Je n'ai pas tout construit d'un coup. Le projet a évolué par étapes, chaque étape corrigeant les problèmes de la précédente.
+J'ai travaillé sur ce projet en plusieurs étapes, chaque étape améliorant la précédente.
 
-En mars 2026, j'ai développé l'application en local : backend Node.js/Express avec les routes d'authentification et de messagerie, frontend en HTML/CSS/JavaScript, Docker Compose pour tout faire tourner ensemble sur mon poste avec MySQL.
+**Mars 2026 — Développement local**
+J'ai commencé par l'application elle-même : le backend en Node.js/Express avec les routes d'authentification (JWT + bcrypt) et les routes de messagerie, le frontend en HTML/CSS/JavaScript, et Docker Compose pour faire tourner le tout localement avec MySQL. Travailler avec Docker dès le départ m'a forcé à rendre l'application compatible container dès le début — pas juste "ça marche sur ma machine".
 
-En avril, j'ai fait le premier déploiement cloud sur AWS. J'ai écrit l'infrastructure Terraform pour EC2 + RDS MySQL et mis en place le pipeline GitHub Actions.
+**Avril 2026 — Premier déploiement sur GCP**
+J'ai écrit les fichiers Terraform pour déployer sur Google Cloud Platform : Cloud Run pour le container, Cloud SQL pour la base de données, Artifact Registry pour stocker les images Docker. J'ai aussi mis en place le pipeline GitHub Actions avec les 4 jobs séquentiels.
 
-En mai, j'ai eu mon premier gros problème : le pipeline GitHub Actions passait en vert, mais l'application ne répondait pas en production. Après avoir cherché, j'ai compris que le script `user_data` de l'EC2 — qui installait Docker et lançait le container — s'exécutait de manière asynchrone après le déploiement Terraform. Terraform considérait le déploiement terminé, mais en réalité Docker n'était pas encore lancé. J'ai migré vers AWS ECS Fargate pour résoudre ce problème : avec Fargate, le container démarre directement depuis l'image Docker sans script d'initialisation, et ECS s'assure lui-même que le container est en vie via le health check. J'ai aussi ajouté les secrets SSM, le HTTPS avec ACM, les smoke tests et les alarmes CloudWatch.
+**Mai-Juin 2026 — Industrialisation**
+J'ai renforcé la sécurité en ajoutant Secret Manager pour ne plus avoir aucun secret en clair. J'ai mis en place la supervision avec Cloud Monitoring et les alertes email. J'ai résolu le problème de connexion Cloud SQL (détaillé en section 6) et ajouté les smoke tests pré-déploiement. Le pipeline est devenu le processus complet que j'utilise aujourd'hui : push → tests → build → smoke tests → déploiement automatique.
 
-En juin, mes crédits AWS se sont épuisés. J'ai dû migrer vers Google Cloud Platform. C'est là que j'ai vraiment vu l'intérêt de Terraform : j'ai réécrit les fichiers HCL pour le provider GCP, et le pipeline, le Dockerfile et le code applicatif n'ont presque pas eu à changer. La migration d'un cloud à l'autre m'a pris quelques jours, pas des semaines — parce que l'infrastructure était en code, pas configurée à la main.
+### Ce que je m'étais fixé comme objectifs
 
-### Ce que j'avais à réaliser
-
-Au départ, j'avais défini ces objectifs pour le projet :
-
-- Une application de messagerie fonctionnelle avec authentification JWT ✓
-- Une image Docker légère construite en multi-stage ✓
-- Une infrastructure cloud entièrement en code avec Terraform ✓
-- Un déploiement automatique déclenché par un simple `git push` ✓
-- Des secrets jamais écrits en clair dans le code ou les logs ✓
-- Le HTTPS en production ✓
-- Une supervision avec alertes ✓
-- Des tests qui bloquent le déploiement si quelque chose ne va pas ✓
+| Objectif | Résultat |
+|----------|---------|
+| Application de messagerie fonctionnelle | ✓ Inscription, connexion, messagerie en production |
+| Image Docker légère | ✓ Multi-stage Alpine, ~180 MB |
+| Infrastructure 100% en code | ✓ Terraform, rien créé à la main |
+| Déploiement automatique sur `git push` | ✓ Pipeline 4 jobs |
+| Secrets jamais en clair | ✓ Secret Manager, vérifié dans les logs |
+| HTTPS en production | ✓ Automatique avec Cloud Run |
+| Supervision avec alertes | ✓ 2 alertes Cloud Monitoring |
+| Tests bloquant le déploiement | ✓ Jest + smoke tests |
 
 ### Contraintes
 
-**Budget.** Je travaille sur les niveaux gratuits. Sur GCP, Cloud Run coûte zéro quand il n'y a pas de trafic (le container s'éteint). Cloud SQL db-f1-micro est la plus petite instance disponible — suffisant pour un projet de formation.
+**Budget.** Je travaille sur les niveaux gratuits de GCP. Cloud Run coûte zéro quand il n'y a pas de trafic (scale to zero). Cloud SQL db-f1-micro est la plus petite instance disponible — suffisant pour ce projet.
 
-**Pas de WebSocket.** L'interface actualise les messages toutes les 3 secondes avec une requête HTTP classique. Ce n'est pas du temps réel au sens strict, mais ça suffit pour l'usage prévu et ça évite de configurer les WebSockets avec Cloud Run.
+**Pas de WebSocket.** L'interface actualise les messages toutes les 3 secondes avec une requête HTTP classique. Ça évite de configurer les WebSockets et c'est suffisant pour l'usage prévu.
 
-**Connexion Cloud SQL.** Sans VPC Connector (qui coûte environ 30€/mois), Cloud Run se connecte à Cloud SQL via le Cloud SQL Auth Proxy intégré — un socket Unix local dans le container. Ça m'a demandé de modifier légèrement le code de connexion, mais c'est plus sécurisé qu'un port réseau ouvert.
+**Connexion Cloud SQL.** Sans VPC Connector (~30€/mois), Cloud Run se connecte à Cloud SQL via le Cloud SQL Auth Proxy intégré — un socket Unix local. Ça m'a demandé une petite modification du code de connexion (détaillée en section 5).
 
-**Scale to zero.** Cloud Run peut éteindre le container quand personne n'utilise l'application. Le premier accès après une période d'inactivité peut prendre 1 à 2 secondes — c'est ce qu'on appelle le "cold start". Acceptable pour un projet de formation.
+**Scale to zero.** Cloud Run peut éteindre le container quand personne ne l'utilise. Le premier accès après inactivité peut prendre 1 à 2 secondes. Acceptable pour ce projet.
 
 ---
 
@@ -103,15 +107,28 @@ Au départ, j'avais défini ces objectifs pour le projet :
 
 ### Ce que j'utilise et pourquoi
 
-Pour le backend, j'ai choisi Node.js 20 avec Express parce que c'est léger, rapide à mettre en place, et le driver mysql2 fonctionne très bien avec. Pour l'authentification, j'utilise JWT pour les tokens (ça évite de stocker des sessions en base) et bcrypt pour hacher les mots de passe avec 10 rounds — chaque vérification prend environ 100ms, ce qui rend les attaques par dictionnaire très lentes. Le frontend est en HTML/CSS/JavaScript vanilla parce qu'un framework (React, Vue...) aurait été surdimensionné pour une interface aussi simple.
+Pour le backend, j'ai choisi Node.js 20 avec Express parce que c'est léger et que le driver mysql2 s'intègre très bien. Pour l'authentification, JWT pour les tokens stateless (pas besoin de stocker des sessions en base) et bcrypt avec 10 rounds pour le hachage des mots de passe. Le frontend est en HTML/CSS/JavaScript vanilla — un framework aurait été surdimensionné pour une interface aussi simple.
 
-Pour la conteneurisation, j'utilise un Dockerfile multi-stage avec Alpine. L'idée du multi-stage, c'est d'avoir une première étape qui installe toutes les dépendances, et une deuxième étape qui copie seulement ce qui est nécessaire pour faire tourner l'application — sans npm, sans les dépendances de développement. Résultat : l'image fait environ 180 MB au lieu de 950 MB avec une image Node.js standard.
+Pour la conteneurisation, un Dockerfile multi-stage avec Alpine : la première étape installe les dépendances, la deuxième ne copie que ce qui est nécessaire pour faire tourner l'application — sans npm, sans les dépendances de développement. Résultat : ~180 MB au lieu de ~950 MB.
 
-Pour le cloud, j'ai choisi Cloud Run plutôt que Kubernetes parce que Kubernetes aurait été beaucoup plus complexe à mettre en place pour une seule application. Cloud Run gère lui-même le scaling, le HTTPS et les certificats SSL — je n'ai pas besoin de configurer tout ça. Pour l'Infrastructure as Code, j'ai utilisé Terraform parce que c'est l'outil standard du secteur et qu'il supporte à la fois AWS et GCP — ce qui m'a directement prouvé sa valeur lors de la migration.
+Pour le cloud, Cloud Run plutôt que Kubernetes parce que Kubernetes aurait été beaucoup trop complexe pour une seule application. Cloud Run gère lui-même le scaling, le HTTPS et les certificats. Pour l'IaC, Terraform parce que c'est le standard du secteur.
 
-### Architecture de l'infrastructure
+| Composant | Technologie | Version |
+|-----------|-------------|---------|
+| Backend | Node.js + Express | 20 LTS / 5.2 |
+| Auth | JWT + bcrypt | 9.0 / 6.0 |
+| Base de données | MySQL | 8.0 (Cloud SQL) |
+| Frontend | HTML/CSS/JS vanilla | — |
+| Conteneurisation | Docker multi-stage Alpine | — |
+| Registre d'images | Google Artifact Registry | europe-west1 |
+| Orchestration | Google Cloud Run | serverless |
+| IaC | Terraform | 1.5+ (provider GCP ~5.0) |
+| CI/CD | GitHub Actions | 4 jobs |
+| Secrets | Google Secret Manager | — |
+| Supervision | Cloud Monitoring + Cloud Logging | — |
+| État Terraform | Google Cloud Storage | `mini-chat-asd-tfstate` |
 
-Voici comment tout est connecté :
+### Architecture
 
 ```
 Développeur
@@ -119,63 +136,60 @@ Développeur
     │  git push main
     ▼
 GitHub Actions
-    ├── Job 1 : npm test — 10 tests Jest (si un échoue, tout s'arrête)
-    ├── Job 2 : docker build → push Artifact Registry avec le tag :hash-du-commit
-    ├── Job 3 : smoke tests sur l'image — 3 vérifications HTTP
+    ├── Job 1 : npm test — 10 tests Jest
+    ├── Job 2 : docker build → Artifact Registry :hash-commit
+    ├── Job 3 : smoke tests sur l'image réelle
     └── Job 4 : terraform apply → Cloud Run déploie la nouvelle image
                     │
                     ▼
         Google Cloud Platform — europe-west1 (Belgique)
-        Projet mini-chat-asd
+        Projet : mini-chat-asd
         ┌───────────────────────────────────────────────────────────┐
         │                                                           │
         │  Internet ──HTTPS──► [Cloud Run — mini-chat-backend]     │
         │                           │                              │
-        │                     socket Unix                          │
-        │                 /cloudsql/mini-chat-asd:...              │
+        │                     socket Unix Cloud SQL Auth Proxy     │
         │                           │                              │
         │              [Cloud SQL MySQL 8.0 — mini-chat-db]        │
         │                                                           │
-        │  [Cloud Logging]  [Cloud Monitoring + alertes]           │
+        │  [Cloud Logging]  [Cloud Monitoring + 2 alertes email]   │
         │  [Artifact Registry]  [Secret Manager]                   │
         │  [Cloud Storage — état Terraform]                        │
         └───────────────────────────────────────────────────────────┘
 ```
 
-Le HTTPS est géré automatiquement par Cloud Run — je n'ai pas eu à configurer de certificat SSL manuellement. Cloud Run génère et renouvelle le certificat tout seul. C'est un avantage concret par rapport à ce que j'avais sur AWS, où je devais créer un certificat ACM, le valider par DNS, configurer l'ALB...
+Le HTTPS est géré automatiquement par Cloud Run — pas de certificat SSL à configurer manuellement, pas de load balancer à créer. Cloud Run génère et renouvelle le certificat tout seul.
 
 ### Base de données
-
-Le schéma est simple : deux tables reliées par une clé étrangère.
 
 ```sql
 CREATE TABLE users (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   username   VARCHAR(50)  NOT NULL UNIQUE,
-  password   VARCHAR(255) NOT NULL,   -- toujours un hash bcrypt, jamais le mot de passe en clair
+  password   VARCHAR(255) NOT NULL,   -- hash bcrypt, jamais le mot de passe en clair
   created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE messages (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   user_id    INT          NOT NULL,
-  message    TEXT         NOT NULL,
+  message    TEXT         NOT NULL,   -- contenu échappé XSS avant insertion
   created_at TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id)
 );
 ```
 
-Je n'utilise pas de fichier SQL d'initialisation séparé. Au démarrage du backend, une fonction `initSchema()` exécute les `CREATE TABLE IF NOT EXISTS`. Ça évite d'avoir à se connecter manuellement à Cloud SQL pour initialiser la base — tout se fait automatiquement au premier démarrage.
+Le schéma est créé automatiquement au premier démarrage du backend via `CREATE TABLE IF NOT EXISTS`. Je n'ai pas besoin de me connecter manuellement à Cloud SQL pour initialiser la base.
 
 ### Routes de l'API
 
-| Route | Méthode | Auth | Ce que ça fait |
-|-------|---------|------|----------------|
-| `/` | GET | Non | Répond "Backend OK" — Cloud Run utilise cette route pour vérifier que le container est en vie |
-| `/auth/register` | POST | Non | Valide le nom d'utilisateur (3 à 20 caractères, lettres/chiffres/underscore), hache le mot de passe, insère en base |
-| `/auth/login` | POST | Non | Vérifie le mot de passe avec bcrypt, retourne un token JWT valable 1 heure |
-| `/messages` | GET | JWT | Retourne tous les messages avec le nom d'utilisateur et la date, triés par ordre chronologique |
-| `/messages` | POST | JWT | Valide le message (max 500 caractères), échappe les caractères HTML, enregistre en base |
+| Route | Méthode | Auth | Description |
+|-------|---------|------|-------------|
+| `/` | GET | Non | "Backend OK" — Cloud Run vérifie cette route pour savoir si le container est vivant |
+| `/auth/register` | POST | Non | Validation du nom (3-20 chars, alphanumérique), hachage bcrypt, insertion |
+| `/auth/login` | POST | Non | Vérification bcrypt, retourne un token JWT (1 heure) |
+| `/messages` | GET | JWT | Tous les messages avec nom d'utilisateur et date, ordre chronologique |
+| `/messages` | POST | JWT | Validation (max 500 chars), échappement HTML, insertion |
 
 ---
 
@@ -183,54 +197,50 @@ Je n'utilise pas de fichier SQL d'initialisation séparé. Au démarrage du back
 
 ## 4. Démarche et outils
 
-### Comment j'ai travaillé
+### Comment j'ai construit ce projet
 
-Je n'ai pas tout construit en même temps. J'ai suivi un ordre qui m'a semblé logique : d'abord faire fonctionner l'application localement, ensuite la conteneuriser, ensuite mettre en place les tests, et enfin déployer sur le cloud.
+Je n'ai pas tout construit en même temps. J'ai suivi un ordre logique : d'abord faire fonctionner l'application en local, ensuite la conteneuriser, ensuite les tests, ensuite le cloud.
 
-J'ai commencé par l'application et Docker Compose. L'avantage de travailler avec Docker dès le début, c'est qu'on force l'application à fonctionner dans un container propre — pas juste sur "ma machine". Quand j'ai voulu déployer sur le cloud, il n'y avait pas de surprise.
+Commencer avec Docker Compose localement m'a forcé à penser "container" dès le départ. Quand j'ai voulu déployer sur GCP, il n'y avait pas de surprise — l'application fonctionnait déjà dans un container propre.
 
-Ensuite j'ai mis en place les tests Jest avant même de déployer sur le cloud. La raison : si les tests sont dans le pipeline et que le pipeline bloque si un test échoue, j'ai une raison de maintenir les tests à jour. Sans cette contrainte, on a tendance à ne jamais écrire de tests. J'ai utilisé supertest pour tester les routes HTTP sans avoir besoin d'une vraie base de données — je mocke mysql2 dans les tests. La couverture atteint 60% des lignes, ce qui correspond au seuil requis. Les parties non couvertes sont principalement les chemins "heureux" (inscription réussie, connexion réussie) qui nécessiteraient une vraie base de données dans les tests.
+J'ai mis en place les tests Jest avant de déployer sur le cloud. La raison : si les tests sont dans le pipeline et que le pipeline bloque si un test échoue, j'ai une vraie raison de les maintenir. Sans cette contrainte, j'aurais probablement remis les tests à plus tard. J'ai utilisé supertest pour tester les routes HTTP sans base de données — je mocke mysql2 dans les tests, ce qui les rend déterministes et rapides.
 
-Pour Terraform, j'ai écrit les fichiers au fur et à mesure. Je ne suis pas parti d'un modèle générique — j'ai commencé par la ressource minimale pour faire tourner l'application, et j'ai ajouté les autres couches progressivement (secrets, supervision, comptes de service). Ce processus m'a forcé à comprendre ce que chaque ressource fait réellement.
+Pour Terraform, j'ai écrit les fichiers au fur et à mesure des besoins. Je n'ai pas utilisé de template générique. J'ai commencé par Cloud Run + Cloud SQL minimal, puis ajouté Secret Manager, puis les comptes de service avec droits limités, puis la supervision. Ce processus progressif m'a forcé à comprendre ce que chaque ressource fait réellement plutôt que de copier une configuration existante.
 
-### Sécurité — les choix que j'ai faits
+[CAPTURE : Pipeline GitHub Actions avec les 4 jobs en vert — montrer que tous les jobs ont réussi]
 
-La sécurité dans ce projet fonctionne en plusieurs couches.
+### Sécurité
 
-Les secrets (mot de passe de la base de données, clé de signature JWT) ne sont jamais dans le code source, pas dans les variables d'environnement visibles de Cloud Run, pas dans l'image Docker, et pas dans les logs. Ils sont dans Google Secret Manager et injectés directement dans le container au démarrage via le champ `secrets` de la configuration Terraform. En pratique, même quelqu'un qui aurait accès à la console GCP ne verrait que le nom du secret — jamais sa valeur.
+Les secrets (mot de passe de la base, clé JWT) ne sont jamais dans le code source, pas dans les variables d'environnement visibles de Cloud Run, pas dans les logs. Ils sont dans Google Secret Manager et injectés au démarrage du container via le champ `secrets` de la configuration Terraform. Même quelqu'un ayant accès à la console GCP ne voit que le nom du secret — jamais sa valeur.
 
-Pour la connexion à Cloud SQL, j'utilise le Cloud SQL Auth Proxy intégré à Cloud Run. Plutôt qu'un port TCP ouvert, le proxy crée un socket Unix local dans le container, et l'authentification se fait par le compte de service GCP. Même avec une IP publique sur Cloud SQL, personne ne peut s'y connecter directement depuis l'extérieur.
+Pour la connexion à Cloud SQL, j'utilise le Cloud SQL Auth Proxy intégré à Cloud Run. Plutôt qu'un port réseau ouvert, le proxy crée un socket Unix local dans le container, et l'authentification se fait par le compte de service GCP.
 
-J'ai créé un compte de service dédié pour Cloud Run (`mini-chat-cloudrun@`) avec exactement deux droits : se connecter à Cloud SQL et lire les secrets dans Secret Manager. Il n'a pas le droit de créer des ressources GCP, de modifier l'infrastructure, ou d'accéder à quoi que ce soit d'autre. C'est ce qu'on appelle le principe du moindre privilège — en pratique, ça veut dire que même si quelqu'un volait les credentials de l'application, les dégâts seraient limités.
+J'ai créé un compte de service dédié pour Cloud Run avec exactement deux droits : se connecter à Cloud SQL et lire les secrets dans Secret Manager. Si l'application était compromise, l'attaquant ne pourrait pas modifier l'infrastructure GCP — le compte n'a pas ces droits.
 
-Dans le code, toutes les requêtes SQL utilisent des paramètres préparés (les `?` de mysql2) — jamais de concaténation de chaînes qui permettrait une injection SQL. Le contenu des messages est échappé avec `escapeHtml()` avant d'être enregistré en base pour éviter le XSS.
+Dans le code, toutes les requêtes SQL utilisent des paramètres préparés (jamais de concaténation de chaînes) et le contenu des messages est échappé avant insertion (protection XSS). Il n'y a aucune clé SSH dans ce projet — Cloud Run ne permet pas de connexion SSH.
 
-Cloud Run étant serverless, il n'y a aucun serveur sur lequel se connecter — donc aucune clé SSH dans ce projet.
-
-### Le pipeline CI/CD — pourquoi 4 jobs dans cet ordre
-
-Le pipeline est structuré en 4 jobs séquentiels. Chaque job dépend du précédent : si un job échoue, les suivants ne s'exécutent pas.
+### Le pipeline CI/CD — logique des 4 jobs
 
 ```
-Job 1 — Tests unitaires
-    Si un test échoue → on s'arrête là. Pas question de construire une image cassée.
+Job 1 — Tests unitaires Jest (10 tests)
+    → Si un test échoue, tout s'arrête. Pas question de construire une image cassée.
 
-Job 2 — Construction de l'image et push sur Artifact Registry
-    L'image est taguée avec le hash exact du commit Git.
-    Je sais à tout moment quelle version exacte tourne en production.
+Job 2 — docker build + push Artifact Registry
+    → L'image est taguée avec le hash exact du commit Git.
+      Je sais toujours quelle version exacte tourne en production.
 
-Job 3 — Smoke tests sur l'image
-    Je tire l'image depuis Artifact Registry (la même qui partira en prod)
-    et je vérifie 3 comportements : health check → 200, validation → 400, protection JWT → 403.
-    C'est différent des tests Jest : là j'teste l'image réelle, pas un mock.
+Job 3 — Smoke tests sur l'image réelle
+    → Je tire l'image depuis Artifact Registry (la même qui partira en prod)
+      et je vérifie 3 comportements : health check → 200, validation → 400, JWT → 403.
+      Différent des tests Jest : là, j'utilise l'image réelle, pas un mock.
 
 Job 4 — terraform apply
-    Cloud Run déploie la nouvelle image avec un rolling update :
-    le nouveau container démarre, le health check passe, l'ancien s'arrête.
-    Si le health check ne passe pas, l'ancien container reste actif.
+    → Cloud Run déploie avec rolling update : nouveau container démarré,
+      health check validé, puis ancien container arrêté.
+      Si le health check échoue, le déploiement s'annule automatiquement.
 ```
 
-L'intérêt des smoke tests en Job 3, c'est de tester exactement le même artefact qui va partir en production. Si une dépendance npm manque dans l'image Docker ou si le Dockerfile est cassé, ça se voit ici — avant de toucher à la production.
+[CAPTURE : Console GCP Cloud Run — montrer le service mini-chat-backend actif avec le nombre d'instances et l'URL]
 
 ---
 
@@ -238,13 +248,13 @@ L'intérêt des smoke tests en Job 3, c'est de tester exactement le même artefa
 
 ## 5. Réalisations du candidat
 
-### Cloud Run avec injection des secrets depuis Secret Manager
+### Configuration Cloud Run et injection des secrets
 
 **Fichier :** `terraform/cloudrun.tf`
 
-C'est le fichier central de mon infrastructure GCP. Il décrit tout ce qui concerne le service Cloud Run : l'image à utiliser, les variables d'environnement, les secrets, la connexion à Cloud SQL.
+Ce fichier est le cœur de mon infrastructure. Il définit le service Cloud Run avec tous ses paramètres : image à utiliser, variables d'environnement, secrets, connexion Cloud SQL.
 
-Le point le plus important est la façon dont j'injecte les secrets. J'aurais pu les passer comme variables d'environnement classiques, mais alors n'importe qui avec accès à la console GCP les verrait en clair dans la définition du service. Avec `value_source.secret_key_ref`, Cloud Run va lui-même chercher la valeur dans Secret Manager au démarrage — la console ne montre que le nom du secret, jamais sa valeur.
+Le point central est l'injection des secrets. J'aurais pu les passer comme variables d'environnement classiques (`env { name = "DB_PASSWORD", value = "..." }`), mais alors la valeur serait visible dans la console GCP pour quiconque a accès au projet. Avec `value_source.secret_key_ref`, Cloud Run va chercher la valeur dans Secret Manager au démarrage du container — la console ne montre que le nom du secret.
 
 ```hcl
 resource "google_cloud_run_v2_service" "backend" {
@@ -255,7 +265,7 @@ resource "google_cloud_run_v2_service" "backend" {
     service_account = google_service_account.cloudrun.email
 
     scaling {
-      min_instance_count = 0   # s'éteint quand personne n'utilise l'app
+      min_instance_count = 0   # éteint quand inactif — coût = 0
       max_instance_count = 3
     }
 
@@ -272,7 +282,6 @@ resource "google_cloud_run_v2_service" "backend" {
         value = "/cloudsql/${google_sql_database_instance.main.connection_name}"
       }
 
-      # Secrets injectés depuis Secret Manager — jamais visibles dans les logs
       env {
         name = "DB_PASSWORD"
         value_source {
@@ -296,14 +305,12 @@ resource "google_cloud_run_v2_service" "backend" {
         limits = { cpu = "1", memory = "512Mi" }
       }
 
-      # volume_mounts doit être dans le bloc containers
       volume_mounts {
         name       = "cloudsql"
         mount_path = "/cloudsql"
       }
     }
 
-    # volumes se déclare au niveau template (pas dans containers)
     volumes {
       name = "cloudsql"
       cloud_sql_instance {
@@ -328,15 +335,15 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
 }
 ```
 
-La variable `var.image_tag` reçoit le hash du commit Git via le pipeline (`TF_VAR_image_tag=${{ github.sha }}`). C'est ce qui crée la traçabilité : chaque déploiement pointe vers une image spécifique, et on peut toujours savoir quel commit exact tourne en production.
+La variable `var.image_tag` reçoit `${{ github.sha }}` depuis le pipeline. C'est ce qui crée la traçabilité : chaque déploiement pointe vers une image précise, et on sait toujours quel commit exact tourne en production.
+
+[CAPTURE : Google Secret Manager — montrer les deux secrets mini-chat-db-password et mini-chat-jwt-secret dans la console GCP]
 
 ---
 
-### Cloud SQL, Secret Manager et comptes de service
+### Base de données, secrets et comptes de service
 
 **Fichier :** `terraform/main.tf` (extrait)
-
-Ce fichier crée la base de données, les secrets chiffrés, et définit qui a le droit de faire quoi dans GCP.
 
 ```hcl
 resource "google_sql_database_instance" "main" {
@@ -368,23 +375,20 @@ resource "google_secret_manager_secret" "db_password" {
 
 resource "google_secret_manager_secret_version" "db_password" {
   secret      = google_secret_manager_secret.db_password.id
-  secret_data = var.db_password  # vient de GitHub Secrets, jamais écrit dans le code
+  secret_data = var.db_password  # vient des GitHub Secrets — jamais écrit dans le code
 }
 
-# Compte de service dédié à Cloud Run
 resource "google_service_account" "cloudrun" {
   account_id   = "mini-chat-cloudrun"
   display_name = "Mini-Chat Cloud Run"
 }
 
-# Droit de se connecter à Cloud SQL — rien d'autre
 resource "google_project_iam_member" "cloudrun_sql" {
   project = var.project_id
   role    = "roles/cloudsql.client"
   member  = "serviceAccount:${google_service_account.cloudrun.email}"
 }
 
-# Droit de lire le secret DB_PASSWORD — rien d'autre
 resource "google_secret_manager_secret_iam_member" "db_password" {
   secret_id = google_secret_manager_secret.db_password.id
   role      = "roles/secretmanager.secretAccessor"
@@ -392,17 +396,17 @@ resource "google_secret_manager_secret_iam_member" "db_password" {
 }
 ```
 
-J'ai délibérément séparé les droits entre deux comptes de service : `terraform-deployer` qui crée et modifie l'infrastructure, et `mini-chat-cloudrun` qui fait tourner l'application. Si l'application est compromise, l'attaquant ne peut pas modifier l'infrastructure GCP parce que le compte de service de l'application n'a tout simplement pas ces droits.
+J'ai séparé les droits entre deux comptes de service : `terraform-deployer` qui crée et modifie l'infrastructure, et `mini-chat-cloudrun` qui fait tourner l'application. Ce dernier n'a que deux droits — se connecter à Cloud SQL et lire les secrets. Si l'application était compromise, l'attaquant ne pourrait pas modifier l'infrastructure.
 
 ---
 
-### Modification de database.js pour le socket Unix Cloud SQL
+### Adaptation de la connexion MySQL pour Cloud SQL
 
 **Fichier :** `backend/src/config/database.js`
 
-C'est la seule modification de code que j'ai dû faire pour la migration vers GCP. Le driver mysql2 se connecte normalement via `host` (adresse IP ou nom de domaine). Mais avec Cloud SQL Auth Proxy sur Cloud Run, la connexion passe par un socket Unix local — il faut utiliser `socketPath` à la place.
+C'est la seule modification de code que j'ai dû faire pour supporter Cloud SQL. Le driver mysql2 se connecte normalement via `host` (adresse IP). Mais avec Cloud SQL Auth Proxy sur Cloud Run, la connexion passe par un socket Unix local — il faut utiliser `socketPath`.
 
-J'ai ajouté une détection automatique : si la variable `DB_SOCKET_PATH` existe (en production sur Cloud Run), on utilise le socket. Sinon, on utilise `DB_HOST` (en local avec Docker Compose). Comme ça, l'environnement local continue de fonctionner exactement comme avant.
+J'ai ajouté une détection automatique : si `DB_SOCKET_PATH` existe (en production), on utilise le socket. Sinon, on utilise `DB_HOST` (en local avec Docker Compose). L'environnement local continue de fonctionner exactement comme avant sans aucun changement de configuration.
 
 ```javascript
 const poolConfig = {
@@ -415,7 +419,7 @@ const poolConfig = {
 };
 
 // Production (Cloud Run) : socket Unix via Cloud SQL Auth Proxy
-// Local (Docker Compose) : connexion TCP classique
+// Local (Docker Compose) : connexion TCP classique vers le container MySQL
 if (process.env.DB_SOCKET_PATH) {
   poolConfig.socketPath = process.env.DB_SOCKET_PATH;
 } else {
@@ -429,9 +433,9 @@ const pool = mysql.createPool(poolConfig);
 
 ### Authentification GCP dans le pipeline
 
-**Fichier :** `.github/workflows/ci-cd.yml` (extrait du step d'authentification)
+**Fichier :** `.github/workflows/ci-cd.yml` (extrait)
 
-J'ai essayé plusieurs méthodes pour authentifier GitHub Actions avec GCP. La première utilisait `echo "$GCP_SA_KEY" | base64 --decode`, qui échouait à cause des caractères CRLF Windows dans la clé JSON. La solution finale utilise Python, qui lit la variable d'environnement directement sans passer par le shell :
+J'ai eu plusieurs tentatives ratées pour authentifier GitHub Actions avec GCP. La première utilisait `echo "$GCP_SA_KEY" | base64 --decode` qui échouait à cause des caractères Windows dans la clé JSON. La solution finale utilise Python, qui lit la variable d'environnement directement sans passer par le shell :
 
 ```yaml
 - name: Auth GCP
@@ -442,12 +446,11 @@ J'ai essayé plusieurs méthodes pour authentifier GitHub Actions avec GCP. La p
     import os, base64, json
     raw = os.environ["GCP_SA_KEY"].strip()
     try:
-        # Tente le décodage base64 (format alternatif)
         decoded = base64.b64decode(raw).decode("utf-8")
         json.loads(decoded)
         raw = decoded
     except Exception:
-        pass  # c'est du JSON brut, on garde tel quel
+        pass
     with open("/tmp/sa-key.json", "w") as f:
         f.write(raw)
     EOF
@@ -456,7 +459,9 @@ J'ai essayé plusieurs méthodes pour authentifier GitHub Actions avec GCP. La p
     echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json" >> $GITHUB_ENV
 ```
 
-Le `GOOGLE_APPLICATION_CREDENTIALS` exporté dans `$GITHUB_ENV` permet à Terraform de trouver les credentials dans les steps suivants (terraform init, validate, apply) sans avoir à répéter l'authentification.
+Le `GOOGLE_APPLICATION_CREDENTIALS` exporté dans `$GITHUB_ENV` permet aux steps suivants (terraform init, validate, apply) de trouver les credentials sans ré-authentification.
+
+[CAPTURE : Cloud Monitoring — montrer les 2 alertes actives et l'uptime check en état OK]
 
 ---
 
@@ -464,32 +469,31 @@ Le `GOOGLE_APPLICATION_CREDENTIALS` exporté dans `$GITHUB_ENV` permet à Terraf
 
 ## 6. Situation de travail ayant nécessité une recherche
 
-### Pourquoi Cloud Run ne pouvait pas se connecter à Cloud SQL
+### Cloud Run ne pouvait pas se connecter à Cloud SQL
 
-Lors de la migration vers GCP, j'ai déployé Cloud Run et configuré `DB_HOST` avec l'adresse IP publique de Cloud SQL. Le container démarrait, mais l'application échouait immédiatement avec cette erreur dans Cloud Logging :
+**Le problème**
+
+Lors du premier déploiement, j'avais configuré `DB_HOST` avec l'adresse IP publique de Cloud SQL. Le container démarrait, mais l'application tombait immédiatement. Dans Cloud Logging, je voyais :
 
 ```
 Error: connect ECONNREFUSED 104.155.21.110:3306
 ```
 
-J'avais bien activé l'IP publique sur Cloud SQL. J'avais vérifié les identifiants. Mais rien.
+L'IP publique était bien activée sur Cloud SQL. Les identifiants étaient bons. Mais rien.
 
 **Ce que j'ai cherché**
 
-J'ai cherché "Cloud Run connect Cloud SQL" dans la documentation officielle Google. Je suis tombé sur la page "Connect from Cloud Run to Cloud SQL" qui explique deux options :
-- VPC Serverless Connector : connexion réseau privé, autour de 30€/mois
-- Cloud SQL Auth Proxy intégré : socket Unix local, géré par GCP, gratuit
+J'ai cherché "Cloud Run connect Cloud SQL" dans la documentation officielle Google. Je suis tombé sur la page "Connect from Cloud Run to Cloud SQL" qui présente deux options :
+- VPC Serverless Connector : connexion réseau privé, environ 30€/mois
+- Cloud SQL Auth Proxy intégré : socket Unix local, gratuit, géré par GCP
 
 **Ce que j'ai compris**
 
-GCP ne fonctionne pas comme AWS sur ce point. Même avec une IP publique sur Cloud SQL, GCP vérifie l'identité du client qui se connecte via IAM — pas juste l'adresse IP source. Pour une connexion directe TCP depuis Cloud Run, il faudrait configurer des plages d'IP autorisées, mais Cloud Run n'a pas d'IP fixe.
-
-La vraie solution, c'est le Cloud SQL Auth Proxy. Quand on déclare un `volume` de type `cloud_sql_instance` dans Terraform, Cloud Run déploie automatiquement le proxy comme un processus secondaire dans le container. Le proxy crée un socket Unix à `/cloudsql/[connection-name]`. Le container s'y connecte via `socketPath` au lieu de `host`, et l'authentification se fait via le compte de service GCP — aucun port réseau à ouvrir.
+Sur GCP, même avec une IP publique sur Cloud SQL, les connexions TCP directes depuis Cloud Run ne fonctionnent pas sans ouvrir des plages d'IP autorisées — et Cloud Run n'a pas d'IP fixe. La vraie solution est le Cloud SQL Auth Proxy. Quand on déclare un `volume` de type `cloud_sql_instance` dans Terraform, Cloud Run déploie automatiquement le proxy comme processus secondaire dans le container. Le proxy crée un socket Unix à `/cloudsql/[connection-name]`. La connexion est authentifiée par le compte de service GCP — aucun port réseau à ouvrir.
 
 **Ce que j'ai changé**
 
-Dans `cloudrun.tf`, j'ai ajouté le volume et défini la variable d'environnement `DB_SOCKET_PATH` :
-
+Dans `cloudrun.tf` :
 ```hcl
 env {
   name  = "DB_SOCKET_PATH"
@@ -509,27 +513,19 @@ volumes {
 }
 ```
 
-Et dans `database.js`, j'ai ajouté la logique de détection pour utiliser `socketPath` si la variable est présente :
-
-```javascript
-if (process.env.DB_SOCKET_PATH) {
-  poolConfig.socketPath = process.env.DB_SOCKET_PATH;
-} else {
-  poolConfig.host = process.env.DB_HOST || "db";
-}
-```
-
-Après ça, la connexion a fonctionné immédiatement.
+Dans `database.js`, j'ai ajouté la détection automatique socket/TCP. Après ça, la connexion a fonctionné immédiatement.
 
 **Ce que ça m'a appris**
 
-GCP a ses propres mécanismes pour connecter les services entre eux. Ce n'est pas toujours intuitif par rapport à ce qu'on ferait sur AWS ou en local, mais c'est en général plus sécurisé. Le Cloud SQL Auth Proxy évite complètement d'ouvrir un port réseau — la connexion est authentifiée par IAM avant même d'arriver à la base de données.
+GCP a ses propres mécanismes pour connecter les services entre eux — ce n'est pas forcément intuitif par rapport à une connexion TCP classique, mais c'est plus sécurisé. L'authentification se fait par IAM avant même d'arriver à la base de données.
 
 ---
 
-### Résoudre un bug HTTPS qui bloquait toute l'interface
+### Bug HTTPS qui bloquait toute l'interface
 
-Après avoir activé HTTPS sur AWS (en Phase 2), j'avais accès à l'application en HTTPS mais impossible de s'inscrire ou de se connecter. La console du navigateur montrait :
+**Le problème**
+
+Après avoir activé HTTPS, j'avais accès à l'application mais impossible de s'inscrire ou de se connecter. La console du navigateur montrait :
 
 ```
 Mixed Content: The page at 'https://...' was loaded over HTTPS,
@@ -537,9 +533,13 @@ but requested an insecure XMLHttpRequest endpoint 'http://...:3000/auth/register
 This request has been blocked.
 ```
 
-Le problème était dans `frontend/js/config.js`. Pour construire l'URL de l'API, le code faisait `"http://" + window.location.hostname + ":3000"`. Sur une page HTTPS, le navigateur bloque automatiquement toute requête HTTP — c'est la politique de "Mixed Content".
+**Ce que j'ai cherché**
 
-La correction était simple une fois le problème identifié : en production, les URLs relatives (chaîne vide) suffisent. Le navigateur construit automatiquement l'URL complète en reprenant le protocole et le domaine de la page courante.
+En cherchant "Mixed Content HTTPS JavaScript", j'ai compris que le navigateur bloque toute requête HTTP depuis une page chargée en HTTPS — c'est la politique Mixed Content. Le problème venait de `frontend/js/config.js` qui construisait l'URL de l'API avec `"http://" + window.location.hostname + ":3000"`. En HTTPS, cette URL `http://` est automatiquement bloquée.
+
+**La correction**
+
+En production, les URLs relatives suffisent — le navigateur construit automatiquement l'URL complète en reprenant le protocole de la page courante :
 
 ```javascript
 const getApiUrl = () => {
@@ -547,11 +547,49 @@ const getApiUrl = () => {
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return 'http://localhost:3000';
   }
-  return '';  // URL relative — compatible HTTP local et HTTPS production
+  return '';  // URL relative — fonctionne en HTTP local et en HTTPS production
 };
 ```
 
-Ce bug m'a appris que le frontend doit être pensé pour plusieurs environnements dès le départ. Hardcoder un protocole ou un port dans le code frontend crée une dépendance fragile à l'environnement.
+**Ce que ça m'a appris**
+
+Dès qu'on touche à HTTPS, le frontend doit être pensé pour plusieurs environnements. Hardcoder un protocole ou un port crée une dépendance fragile. Les URLs relatives évitent ce problème et fonctionnent dans tous les contextes.
+
+[CAPTURE : Cloud Logging — montrer les logs du container Cloud Run avec "Server started on port 3000" et "Schema initialized"]
+
+---
+
+---
+
+## 7. Bilan
+
+### Ce qui fonctionne
+
+L'application est en production et accessible publiquement. Les trois blocs de compétences du référentiel sont couverts : l'infrastructure est entièrement décrite en Terraform, le déploiement est automatisé via un pipeline GitHub Actions en quatre étapes, et la supervision est en place avec des alertes email. Depuis le premier déploiement stable, l'application n'a pas eu de coupure non planifiée.
+
+Ce qui me satisfait le plus, c'est la cohérence de l'ensemble. Un `git push` déclenche les tests, construit l'image Docker, la valide avec des smoke tests, puis déploie — sans aucune intervention manuelle. Si les tests échouent, rien ne part en production. Si le health check échoue après déploiement, Cloud Run annule le rolling update automatiquement. C'est ce que j'avais visé au départ.
+
+### Les limites que j'assume
+
+**Pas de WebSocket.** L'interface actualise les messages toutes les 3 secondes via polling HTTP. C'est une contrainte que j'ai choisie consciemment pour ne pas complexifier l'infrastructure. Cloud Run supporte les WebSockets, mais ça aurait demandé plus de configuration et détourné l'attention de l'objectif principal.
+
+**Scale to zero.** Le premier accès après une période d'inactivité prend 1 à 2 secondes de cold start. C'est acceptable pour un projet de formation, mais pas pour une application en production réelle avec des utilisateurs actifs — là, il faudrait `min_instance_count = 1`.
+
+**Couverture de tests à 60%.** Les chemins critiques — authentification, validation, protection JWT — sont couverts. Ce qui ne l'est pas, ce sont les cas d'erreur de base de données et certaines routes secondaires. Pour un projet en production réelle, je viserais 80%.
+
+**Un seul environnement.** Je n'ai pas de staging séparé de la production. Tout passe directement sur le projet GCP `mini-chat-asd`. C'est suffisant pour ce projet, mais en équipe il faudrait deux environnements distincts avec des variables Terraform différentes.
+
+### Ce que je ferais différemment
+
+Je mettrais en place les tests Jest dès le premier jour, avant même d'écrire le code de l'application. J'ai commencé par l'application, puis les tests, puis le pipeline — ce qui m'a obligé à revenir en arrière pour rendre certaines parties testables. Dans l'ordre inverse, le code aurait été mieux structuré dès le départ.
+
+Je configurerais aussi le backend Terraform distant (Cloud Storage) dès le début du projet. J'ai commencé avec un état local, puis migré vers le bucket GCS — cette migration aurait pu causer des problèmes si l'état local avait été corrompu entre-temps.
+
+### Ce que ce projet m'a apporté
+
+Avant ce projet, je comprenais Docker et le principe du cloud. Ce projet m'a forcé à aller beaucoup plus loin : écrire de l'IaC avec Terraform, comprendre comment les services GCP s'authentifient entre eux via IAM, construire un pipeline CI/CD qui bloque réellement sur les erreurs, et superviser une application en conditions réelles.
+
+Les deux situations techniques de la section 6 résument bien cette progression. Le problème Cloud SQL n'était pas un bug dans mon code — c'était une incompréhension de comment GCP gère les connexions entre services. Comprendre pourquoi TCP ne fonctionne pas et pourquoi le socket Unix via le proxy est la bonne solution, c'est le genre de connaissance qu'on n'acquiert qu'en se confrontant à un vrai environnement cloud.
 
 ---
 

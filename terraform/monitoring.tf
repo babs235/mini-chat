@@ -1,104 +1,92 @@
-# ── SNS : notifications email ────────────────────────────────
-resource "aws_sns_topic" "alerts" {
-  name = "mini-chat-alerts"
-}
+# ── CANAL DE NOTIFICATION EMAIL ──────────────────────────────
+# Remplace AWS SNS — reçoit les alertes Cloud Monitoring
+resource "google_monitoring_notification_channel" "email" {
+  display_name = "Mini-Chat Alerts Email"
+  type         = "email"
 
-resource "aws_sns_topic_subscription" "email" {
-  topic_arn = aws_sns_topic.alerts.arn
-  protocol  = "email"
-  endpoint  = "babikiribrahimalkhalil@gmail.com"
-}
-
-# Permet à CloudWatch de publier sur ce topic SNS
-resource "aws_sns_topic_policy" "alerts_policy" {
-  arn = aws_sns_topic.alerts.arn
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [{
-      Effect    = "Allow"
-      Principal = { Service = "cloudwatch.amazonaws.com" }
-      Action    = "SNS:Publish"
-      Resource  = aws_sns_topic.alerts.arn
-    }]
-  })
-}
-
-# ── ALARMES CLOUDWATCH ────────────────────────────────────────
-# Déclenche une alerte email si le container s'arrête
-resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped" {
-  alarm_name          = "mini-chat-ecs-task-stopped"
-  comparison_operator = "LessThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "RunningTaskCount"
-  namespace           = "ECS/ContainerInsights"
-  period              = 60
-  statistic           = "Average"
-  threshold           = 1
-  alarm_description   = "Aucun container ECS en cours d execution - service indisponible"
-  treat_missing_data  = "breaching"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-
-  dimensions = {
-    ClusterName = aws_ecs_cluster.mini_chat.name
-    ServiceName = aws_ecs_service.backend.name
+  labels = {
+    email_address = "babikiribrahimalkhalil@gmail.com"
   }
 }
 
-# Déclenche si plus de 10 erreurs 5xx sur 5 minutes
-resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
-  alarm_name          = "mini-chat-alb-5xx-eleve"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "HTTPCode_ELB_5XX_Count"
-  namespace           = "AWS/ApplicationELB"
-  period              = 300
-  statistic           = "Sum"
-  threshold           = 10
-  alarm_description   = "Taux d erreurs HTTP 5xx depasse le seuil sur 5 minutes"
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
+# ── UPTIME CHECK ──────────────────────────────────────────────
+# Vérifie que l'URL Cloud Run répond toutes les 5 minutes
+resource "google_monitoring_uptime_check_config" "cloudrun" {
+  display_name = "mini-chat-uptime"
+  timeout      = "10s"
+  period       = "300s"
 
-  dimensions = {
-    LoadBalancer = aws_lb.mini_chat.arn_suffix
+  http_check {
+    path         = "/"
+    port         = 443
+    use_ssl      = true
+    validate_ssl = true
+  }
+
+  monitored_resource {
+    type = "uptime_url"
+    labels = {
+      project_id = var.project_id
+      host       = trimprefix(google_cloud_run_v2_service.backend.uri, "https://")
+    }
+  }
+
+  depends_on = [google_cloud_run_v2_service.backend]
+}
+
+# ── ALERTE INDISPONIBILITE ────────────────────────────────────
+# Déclenche un email si le service ne répond pas
+resource "google_monitoring_alert_policy" "uptime_failure" {
+  display_name = "mini-chat-service-down"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "Service Cloud Run indisponible"
+
+    condition_threshold {
+      filter          = "metric.type=\"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.type=\"uptime_url\""
+      duration        = "60s"
+      comparison      = "COMPARISON_LT"
+      threshold_value = 1
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_NEXT_OLDER"
+        cross_series_reducer = "REDUCE_COUNT_TRUE"
+        group_by_fields    = ["resource.label.host"]
+      }
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.email.id]
+  alert_strategy {
+    notification_rate_limit {
+      period = "300s"
+    }
   }
 }
 
-# Déclenche si le CPU dépasse 80% pendant 10 minutes consécutives
-resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
-  alarm_name          = "mini-chat-ecs-cpu-eleve"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "CPUUtilization"
-  namespace           = "AWS/ECS"
-  period              = 300
-  statistic           = "Average"
-  threshold           = 80
-  alarm_description   = "CPU ECS superieur a 80 pourcent pendant 10 minutes"
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
+# ── ALERTE ERREURS 5XX ────────────────────────────────────────
+# Déclenche si le taux d'erreurs serveur dépasse 5%
+resource "google_monitoring_alert_policy" "error_rate" {
+  display_name = "mini-chat-high-error-rate"
+  combiner     = "OR"
 
-  dimensions = {
-    ClusterName = aws_ecs_cluster.mini_chat.name
-    ServiceName = aws_ecs_service.backend.name
+  conditions {
+    display_name = "Taux d'erreurs 5xx elevé"
+
+    condition_threshold {
+      filter     = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\" AND metric.labels.response_code_class=\"5xx\""
+      duration   = "300s"
+      comparison = "COMPARISON_GT"
+      threshold_value = 10
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_RATE"
+      }
+    }
   }
-}
 
-# Déclenche si l'espace disque RDS passe sous 2 Go
-resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
-  alarm_name          = "mini-chat-rds-espace-disque-faible"
-  comparison_operator = "LessThanThreshold"
-  evaluation_periods  = 1
-  metric_name         = "FreeStorageSpace"
-  namespace           = "AWS/RDS"
-  period              = 300
-  statistic           = "Average"
-  threshold           = 2000000000
-  alarm_description   = "Espace disque RDS inferieur a 2 Go - risque de saturation"
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = [aws_sns_topic.alerts.arn]
-
-  dimensions = {
-    DBInstanceIdentifier = aws_db_instance.mini_chat_db.identifier
-  }
+  notification_channels = [google_monitoring_notification_channel.email.id]
 }

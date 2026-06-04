@@ -1,15 +1,24 @@
 const mysql = require("mysql2");
 
 // Pool de connexions — MySQL réutilise les connexions plutôt que d'en créer une par requête
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || "db",
+// DB_SOCKET_PATH : connexion via socket Unix (Cloud Run + Cloud SQL Auth Proxy)
+// DB_HOST        : connexion TCP classique (développement local avec Docker Compose)
+const poolConfig = {
   user: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME || "mini_chat",
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-});
+};
+
+if (process.env.DB_SOCKET_PATH) {
+  poolConfig.socketPath = process.env.DB_SOCKET_PATH;
+} else {
+  poolConfig.host = process.env.DB_HOST || "db";
+}
+
+const pool = mysql.createPool(poolConfig);
 
 // Gestion silencieuse des déconnexions — le pool se reconnecte automatiquement
 pool.on("error", (err) => {

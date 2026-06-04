@@ -1,5 +1,6 @@
 node_modules/
 .env
+backend/coverage/
 .DS_Store
 
 # Terraform : état local et secrets
@@ -26,7 +27,8 @@ POWERPOINT_PROMPT.md
 .windsurf/
 .windsurf/workflows/
 
-# Clés SSH - Ne JAMAIS versionner
+# Clés SSH et GCP — Ne JAMAIS versionner
 *.pem
 *.key
 ssh-keys/
+gcp-key.json

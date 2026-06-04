@@ -1,13 +1,17 @@
-variable "aws_region" {
-  description = "Région AWS cible"
+variable "project_id" {
+  description = "ID du projet GCP"
   type        = string
-  default     = "eu-west-3"
+  default     = "mini-chat-asd"
 }
 
-# Sans default → Terraform bloque si la valeur n'est pas fournie
-# En CI/CD elles arrivent via TF_VAR_* depuis les GitHub Secrets
+variable "region" {
+  description = "Région GCP cible"
+  type        = string
+  default     = "europe-west1"
+}
+
 variable "db_password" {
-  description = "Mot de passe RDS MySQL"
+  description = "Mot de passe Cloud SQL MySQL"
   type        = string
   sensitive   = true
 }
@@ -18,10 +22,10 @@ variable "jwt_secret" {
   sensitive   = true
 }
 
-# En CI/CD : github.sha → on sait exactement quel commit est déployé
-# En local  : "latest" pour les terraform plan sans pipeline
+# En CI/CD : github.sha → traçabilité exacte du commit déployé
+# En local  : "latest" pour les terraform plan manuels
 variable "image_tag" {
-  description = "Tag de l'image Docker dans ECR"
+  description = "Tag de l'image Docker dans Artifact Registry"
   type        = string
   default     = "latest"
 }

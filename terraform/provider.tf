@@ -1,20 +1,19 @@
 terraform {
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
+    google = {
+      source  = "hashicorp/google"
       version = "~> 5.0"
     }
   }
 
-  # State distant dans S3 chiffré — pas de lock DynamoDB (projet solo, un seul apply à la fois)
-  backend "s3" {
-    bucket  = "mini-chat-tfstate-babs235"
-    key     = "prod/terraform.tfstate"
-    region  = "eu-west-3"
-    encrypt = true
+  # State distant dans GCS — équivalent du bucket S3 AWS
+  backend "gcs" {
+    bucket = "mini-chat-asd-tfstate"
+    prefix = "prod/terraform.tfstate"
   }
 }
 
-provider "aws" {
-  region = var.aws_region
+provider "google" {
+  project = var.project_id
+  region  = var.region
 }

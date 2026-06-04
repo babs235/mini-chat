@@ -1,11 +1,11 @@
-# PROMPT POWERPOINT — Soutenance ASD Niveau 6
+﻿# PROMPT POWERPOINT — Soutenance ASD Niveau 6
 ## Mini-Chat — Administrateur Système DevOps
 
 ---
 
 > **Instructions pour l'IA (Gamma / Skywork / ChatGPT / tout outil de présentation) :**
 > Crée une présentation PowerPoint professionnelle de soutenance sur ce projet DevOps.
-> Thème sombre (bleu marine ou noir), style technique, icônes AWS et DevOps.
+> Thème sombre (bleu marine ou noir), style technique, icônes GCP et DevOps.
 > Police moderne (Inter ou Roboto). Couleur d'accent : orange ou bleu électrique.
 > Chaque slide a un titre clair et du contenu structuré (bullets, tableaux ou schémas).
 > Le plan suit EXACTEMENT le canevas officiel du référentiel ASD Niveau 6.
@@ -29,15 +29,15 @@
 
 **Titre principal :** Mini-Chat — Application de messagerie cloud-native
 
-**Sous-titre :** Déploiement automatisé sur AWS ECS Fargate avec pipeline CI/CD 4 jobs et HTTPS
+**Sous-titre :** Déploiement automatisé sur Google Cloud Run avec pipeline CI/CD 4 jobs et HTTPS
 
 **Informations :**
 - Candidat : Babikir Ibrahim
 - Formation : Administrateur Système DevOps — Titre RNCP Niveau 6
 - Date : Mai 2026
-- Technologies : Node.js · Docker · Terraform · GitHub Actions · AWS ECS Fargate · ACM · SNS
+- Technologies : Node.js · Docker · Terraform · GitHub Actions · Google Cloud Run · ACM · SNS
 
-**Visuel :** fond sombre avec les logos AWS, Docker, GitHub Actions, Terraform
+**Visuel :** fond sombre avec les logos GCP, Docker, GitHub Actions, Terraform
 
 ---
 
@@ -51,16 +51,16 @@ Mini-Chat est une application de messagerie interne développée dans le cadre d
 **Le service en chiffres :**
 - 2 routes d'authentification (inscription / connexion)
 - 2 routes de messagerie (lecture / envoi)
-- 1 base de données relationnelle MySQL managée (AWS RDS)
+- 1 base de données relationnelle MySQL managée (Google Cloud SQL)
 - 1 pipeline CI/CD automatisé en 4 étapes
 - 1 infrastructure cloud entièrement en code (Terraform)
-- HTTPS sur https://chat.ibrahimbabikir.fr
+- HTTPS sur https://mini-chat-backend-py4vurg4oq-ew.a.run.app
 
 **Utilisateurs cibles :**
 Équipes internes — accès via navigateur web sans installation, depuis n'importe quel appareil connecté à Internet.
 
 **Périmètre du projet :**
-Projet réalisé en formation, de la conception à la mise en production sur AWS, couvrant l'ensemble des compétences ASD : infrastructure, conteneurisation, déploiement continu, sécurité et supervision.
+Projet réalisé en formation, de la conception à la mise en production sur GCP, couvrant l'ensemble des compétences ASD : infrastructure, conteneurisation, déploiement continu, sécurité et supervision.
 
 **Visuel :** insérer `app-connexion-https.png` (page de connexion avec cadenas SSL) + `app-messagerie.png` (page de messagerie avec message envoyé)
 
@@ -84,10 +84,10 @@ Projet réalisé en formation, de la conception à la mise en production sur AWS
 |-------|---------|-------------------|
 | Phase 0 | Mars 2026 | Backend Node.js, authentification JWT, frontend HTML/CSS/JS, Docker Compose local |
 | Phase 1 | Avril 2026 | Infrastructure AWS EC2 + RDS, pipeline CI/CD initial, Dockerfile multi-stage |
-| Phase 2 | Mai 2026 | Migration ECS Fargate, suppression SSH, SSM secrets, HTTPS/ACM, smoke tests, alertes SNS |
+| Phase 2 | Mai 2026 | Migration Cloud Run, suppression SSH, SSM secrets, HTTPS/ACM, smoke tests, alertes SNS |
 
 **Décision de migration Phase 1 → Phase 2 :**
-Sur EC2, le pipeline passait en vert mais l'application ne répondait pas. Après analyse : `user_data` asynchrone, image Docker buildée sur l'EC2 depuis le code source, aucune tracabilité. ECS Fargate résout tous ces problèmes sans gestion de serveur.
+Sur EC2, le pipeline passait en vert mais l'application ne répondait pas. Après analyse : `user_data` asynchrone, image Docker buildée sur l'EC2 depuis le code source, aucune tracabilité. Cloud Run résout tous ces problèmes sans gestion de serveur.
 
 **Visuel :** timeline horizontale en 3 étapes colorées (orange → bleu → vert)
 
@@ -105,12 +105,12 @@ Sur EC2, le pipeline passait en vert mais l'application ne répondait pas. Aprè
 | Conteneurisation Docker multi-stage Alpine | ✅ Réalisé |
 | Infrastructure AWS entièrement en code (Terraform) | ✅ Réalisé |
 | Pipeline CI/CD automatisé GitHub Actions | ✅ Réalisé |
-| Secrets sécurisés avec AWS SSM Parameter Store | ✅ Réalisé |
-| Déploiement ECS Fargate sans EC2, sans SSH | ✅ Réalisé |
+| Secrets sécurisés avec Google Secret Manager | ✅ Réalisé |
+| Déploiement Cloud Run sans EC2, sans SSH | ✅ Réalisé |
 | Tests automatisés bloquant le déploiement (Jest + smoke tests) | ✅ Réalisé |
-| HTTPS avec domaine propre (chat.ibrahimbabikir.fr) | ✅ Réalisé |
-| Supervision CloudWatch avec 4 alarmes + notifications email (SNS) | ✅ Réalisé |
-| Auto Scaling ECS (min 1 / max 3 containers) | 🔜 Planifié |
+| HTTPS avec domaine propre (mini-chat-backend-py4vurg4oq-ew.a.run.app) | ✅ Réalisé |
+| Supervision Cloud Monitoring avec 4 alarmes + notifications email (SNS) | ✅ Réalisé |
+| Auto Scaling Cloud Run (min 1 / max 3 containers) | 🔜 Planifié |
 
 ---
 
@@ -123,7 +123,7 @@ Sur EC2, le pipeline passait en vert mais l'application ne répondait pas. Aprè
 | Contrainte | Détail |
 |-----------|--------|
 | Projet formation | Réalisé en centre de formation, pas en entreprise |
-| Budget | Free Tier AWS + ressources minimales (ECS 0.25 vCPU / 512 MB, RDS db.t3.micro) |
+| Budget | Free Tier AWS + ressources minimales (ECS 0.25 vCPU / 512 MB, Cloud SQL db-f1-micro) |
 | Pas de WebSocket | Rafraîchissement HTTP toutes les 3 secondes (polling) |
 | Domaine IONOS | Pas de Route 53 — CNAMEs gérés manuellement dans le panel IONOS |
 | Un seul container | Pas d'auto-scaling — planifié en évolution |
@@ -138,8 +138,8 @@ Sur EC2, le pipeline passait en vert mais l'application ne répondait pas. Aprè
 | Guide de déploiement | ✅ |
 | Infrastructure as Code | ✅ terraform/ (7 fichiers) |
 | Pipeline CI/CD | ✅ .github/workflows/ci-cd.yml (4 jobs) |
-| Application HTTPS en production | ✅ https://chat.ibrahimbabikir.fr |
-| Supervision opérationnelle | ✅ CloudWatch + 4 alarmes + SNS email |
+| Application HTTPS en production | ✅ https://mini-chat-backend-py4vurg4oq-ew.a.run.app |
+| Supervision opérationnelle | ✅ Cloud Monitoring + 4 alarmes + SNS email |
 
 ---
 
@@ -162,24 +162,24 @@ Développeur
     ↓
 GitHub Actions (CI/CD)
     ├── Job 1 : npm test (9 tests Jest) ──────── bloque si échec
-    ├── Job 2 : docker build → push ECR :sha-commit
-    ├── Job 3 : smoke tests (pull ECR → HTTP tests) ─ bloque si KO
+    ├── Job 2 : docker build → push Artifact Registry :sha-commit
+    ├── Job 3 : smoke tests (pull Artifact Registry → HTTP tests) ─ bloque si KO
     └── Job 4 : terraform apply → ECS déploie la nouvelle version
                         ↓
-        AWS eu-west-3 (Paris)
+        GCP europe-west1 (Belgique)
         ┌────────────────────────────────────────────────────┐
         │  Utilisateur → HTTPS 443 → [ACM] → [ALB]          │
         │                              ↓ health check GET /  │
-        │                 [ECS Fargate — Node.js port 3000]  │
+        │                 [Cloud Run — Node.js port 3000]  │
         │                              ↓ port 3306           │
-        │                 [RDS MySQL — subnet privé]         │
+        │                 [Cloud SQL MySQL — subnet privé]         │
         │                                                    │
-        │  CloudWatch Logs + 4 Alarmes → [SNS] → Email       │
+        │  Cloud Logging + 4 Alarmes → [SNS] → Email       │
         └────────────────────────────────────────────────────┘
 ```
 
 **Points clés :**
-- Aucun accès SSH — ECS Fargate, zéro gestion de serveur
+- Aucun accès SSH — Cloud Run, zéro gestion de serveur
 - Chaque image Docker taguée avec le hash exact du commit Git
 - Rolling update : déploiement sans coupure de service
 - HTTPS enforced : HTTP port 80 redirige automatiquement vers HTTPS 443
@@ -200,12 +200,12 @@ GitHub Actions (CI/CD)
 | /auth/login | POST | Non | Connexion — retourne JWT signé (1h) |
 | /messages | GET | JWT | Historique complet avec timestamps |
 | /messages | POST | JWT | Envoi avec protection XSS (escapeHtml) |
-| / | GET | Non | Health check ALB → HTTP 200 |
+| / | GET | Non | Health check Cloud Run → HTTP 200 |
 
 **Sécurité applicative (3 protections) :**
 - SQL Injection → Requêtes préparées mysql2 (jamais de concaténation)
 - XSS → `escapeHtml()` avant chaque insertion en base
-- JWT → Token signé avec secret depuis AWS SSM, expiration 1 heure
+- JWT → Token signé avec secret depuis Google Secret Manager, expiration 1 heure
 
 **Frontend :**
 HTML/CSS/JS — glassmorphism, responsive mobile-first, rafraîchissement automatique 3 secondes.
@@ -237,7 +237,7 @@ Pas de port SSH ouvert — aucune ressource n'a de clé SSH.
 
 **Note sur assign_public_ip = true (ECS) :**
 Les containers ECS ont une IP publique assignée — non par choix de sécurité, mais par contrainte de coût :
-sans NAT Gateway (32$/mois), les containers doivent avoir une IP publique pour joindre ECR et CloudWatch.
+sans NAT Gateway (32$/mois), les containers doivent avoir une IP publique pour joindre ECR et Cloud Monitoring.
 Le Security Group `mini-chat-ecs-sg` bloque tout accès entrant direct depuis Internet : seul l'ALB peut joindre le port 3000.
 L'IP publique sert uniquement au trafic sortant (pull image ECR, envoi logs). En production réelle, un NAT Gateway serait la solution préférable.
 
@@ -251,16 +251,16 @@ L'IP publique sert uniquement au trafic sortant (pull image ECR, envoi logs). En
 
 | Fichier | Contenu |
 |---------|---------|
-| main.tf | VPC, 4 subnets, Internet Gateway, 3 Security Groups, RDS MySQL |
-| ecs.tf | IAM roles, SSM secrets, CloudWatch logs, ECS cluster/task/service, ALB, ACM |
-| monitoring.tf | 4 alarmes CloudWatch + topic SNS + abonnement email |
+| main.tf | VPC, 4 subnets, Internet Gateway, 3 Security Groups, Cloud SQL MySQL |
+| ecs.tf | IAM roles, SSM secrets, Cloud Monitoring logs, ECS cluster/task/service, ALB, ACM |
+| monitoring.tf | 4 alarmes Cloud Monitoring + topic SNS + abonnement email |
 | variables.tf | Variables d'entrée (région, secrets, image_tag) |
 | outputs.tf | URL ALB, endpoint RDS, noms ECS après déploiement |
 | provider.tf | Provider AWS + backend state S3 (chiffré, sans verrou DynamoDB — projet solo, aucun accès concurrent possible) |
 | moved.tf | Historique des renommages de ressources |
 
 **Ce que Terraform crée automatiquement :**
-VPC · 4 subnets · Internet Gateway · 3 Security Groups · ALB · Target Group · Listener HTTP (redirect) · Listener HTTPS (TLS 1.3) · ACM Certificate · ECS Cluster · ECS Task Definition · ECS Service · RDS MySQL · ECR (data) · SSM Parameters · CloudWatch Logs · 4 Alarmes · SNS Topic + Subscription · IAM Role
+VPC · 4 subnets · Internet Gateway · 3 Security Groups · ALB · Target Group · Listener HTTP (redirect) · Listener HTTPS (TLS 1.3) · ACM Certificate · ECS Cluster · Cloud Run Container Definition · Cloud Run Service · Cloud SQL MySQL · ECR (data) · SSM Parameters · Cloud Logging · 4 Alarmes · canal de notification email + Subscription · IAM Role
 
 Un seul `git push` met à jour toute l'infrastructure — y compris les alarmes, les secrets et les certificats.
 
@@ -309,7 +309,7 @@ PUSH sur main
 On teste le même artefact (hash SHA identique) qui partira en production.
 
 **Limite assumée des smoke tests :** les variables DB sont fictives — la connectivité MySQL réelle n'est pas testée ici.
-Ce cas est couvert après déploiement : l'ALB vérifie `GET /` avant de basculer le trafic. Si le container ne peut pas joindre RDS, il échoue au démarrage, le health check ALB ne passe pas, et l'ancien container reste actif (rollback automatique).
+Ce cas est couvert après déploiement : l'ALB vérifie `GET /` avant de basculer le trafic. Si le container ne peut pas joindre RDS, il échoue au démarrage, le health check Cloud Run ne passe pas, et l'ancien container reste actif (rollback automatique).
 
 **Visuel :** insérer `github-actions-4-jobs-verts.png` (pipeline GitHub Actions — 4 jobs tous verts)
 
@@ -346,7 +346,7 @@ Stage 2 — final (node:20-alpine)
 
 ## SLIDE 12 — HTTPS avec ACM
 
-**Titre :** HTTPS — Certificat SSL AWS Certificate Manager
+**Titre :** HTTPS — Certificat SSL Cloud Run (certificat automatique)
 
 **Problème initial :** application accessible uniquement en HTTP sur l'URL de l'ALB (adresse peu mémorisable, pas de cadenas SSL).
 
@@ -354,11 +354,11 @@ Stage 2 — final (node:20-alpine)
 
 ```
 1. Achat domaine ibrahimbabikir.fr chez IONOS
-2. Création certificat ACM dans Terraform (eu-west-3)
+2. Création certificat ACM dans Terraform (europe-west1)
    → Validation par DNS — ACM génère un CNAME à ajouter
 3. IONOS DNS panel — 2 enregistrements CNAME ajoutés manuellement :
-   ├── Validation ACM : _acme-xxxxx.chat.ibrahimbabikir.fr → validation.acm.amazonaws.com
-   └── Sous-domaine   : chat.ibrahimbabikir.fr → mini-chat-alb-xxxxxxxxx.eu-west-3.elb.amazonaws.com
+   ├── Validation ACM : _acme-xxxxx.mini-chat-backend-py4vurg4oq-ew.a.run.app → validation.acm.amazonaws.com
+   └── Sous-domaine   : mini-chat-backend-py4vurg4oq-ew.a.run.app → mini-chat-alb-xxxxxxxxx.europe-west1.elb.amazonaws.com
 4. ALB — 2 listeners configurés dans Terraform :
    ├── Port 80  HTTP  → redirect 301 vers HTTPS
    └── Port 443 HTTPS → forward vers ECS (TLS 1.3, policy ELBSecurityPolicy-TLS13-1-2-2021-06)
@@ -366,7 +366,7 @@ Stage 2 — final (node:20-alpine)
    → plus de Mixed Content, compatible HTTP local et HTTPS prod
 ```
 
-**Résultat :** https://chat.ibrahimbabikir.fr — cadenas SSL, TLS 1.3, redirection HTTP automatique.
+**Résultat :** https://mini-chat-backend-py4vurg4oq-ew.a.run.app — cadenas SSL, TLS 1.3, redirection HTTP automatique.
 
 **Visuel :** insérer `app-connexion-https.png` (navigateur — cadenas vert + "Certificat valide")
 
@@ -374,11 +374,11 @@ Stage 2 — final (node:20-alpine)
 
 ## SLIDE 13 — Gestion des secrets
 
-**Titre :** Secrets — AWS SSM Parameter Store
+**Titre :** Secrets — Google Secret Manager
 
 **Avant (Phase 1 - EC2) :** fichier `.env` en clair sur le serveur
 
-**Après (Phase 2 - ECS Fargate) :**
+**Après (Phase 2 - Cloud Run) :**
 
 ```
 GitHub Secrets              GitHub Actions Pipeline
@@ -386,7 +386,7 @@ GitHub Secrets              GitHub Actions Pipeline
 └── JWT_SECRET     ─────→   TF_VAR_jwt_secret
                                      ↓
                             Terraform stocke dans
-                            SSM Parameter Store
+                            Secret Manager
                             /mini-chat/db_password  🔒 SecureString AES-256
                             /mini-chat/jwt_secret   🔒 SecureString AES-256
                                      ↓
@@ -394,35 +394,35 @@ GitHub Secrets              GitHub Actions Pipeline
                             du container (champ secrets, jamais en clair)
 ```
 
-**Garanties :** jamais dans le code source · jamais dans les logs CloudWatch · jamais dans le state Terraform · jamais dans l'image Docker
+**Garanties :** jamais dans le code source · jamais dans les logs Cloud Monitoring · jamais dans le state Terraform · jamais dans l'image Docker
 
 ---
 
-## SLIDE 14 — Supervision CloudWatch + SNS
+## SLIDE 14 — Supervision Cloud Monitoring + SNS
 
-**Titre :** Supervision — AWS CloudWatch + Notifications SNS
+**Titre :** Supervision — Google Cloud Monitoring + Notifications SNS
 
 **Logs en temps réel :**
 Groupe `/ecs/mini-chat-backend` — logs de démarrage, requêtes HTTP, erreurs — rétention 7 jours.
 
-**4 alarmes CloudWatch actives (terraform/monitoring.tf) :**
+**4 alarmes Cloud Monitoring actives (terraform/monitoring.tf) :**
 
 | Alarme | Métrique | Seuil | Action |
 |--------|---------|-------|--------|
-| Container stoppé | ECS RunningTaskCount | < 1 pendant 1 minute | Email SNS |
-| Erreurs 5xx élevées | ALB HTTPCode_ELB_5XX_Count | > 10 sur 5 minutes | Email SNS |
+| Container stoppé | ECS instance count Cloud Run | < 1 pendant 1 minute | Email SNS |
+| Erreurs 5xx élevées | ALB request_count 5xx | > 10 sur 5 minutes | Email SNS |
 | CPU ECS élevé | ECS CPUUtilization | > 80% pendant 10 minutes | Email SNS |
 | Disque RDS faible | RDS FreeStorageSpace | < 2 Go | Email SNS |
 
 **Notification SNS :**
-Un topic AWS SNS reçoit les alarmes et envoie un email à babikiribrahimalkhalil@gmail.com.
+Un topic Cloud Monitoring email reçoit les alarmes et envoie un email à babikiribrahimalkhalil@gmail.com.
 La politique SNS autorise explicitement `cloudwatch.amazonaws.com` à publier dans le topic.
 
 **Visuel :**
-- `cloudwatch-alarmes-ok.png` — vue d'ensemble CloudWatch : 4 alarmes actives, En alarme : 0, OK : 4
+- `cloudwatch-alarmes-ok.png` — vue d'ensemble Cloud Monitoring : 4 alarmes actives, En alarme : 0, OK : 4
 - `cloudwatch-logs-demarrage.png` — logs /ecs/mini-chat-backend : "Server started on port 3000" + "Schema initialized"
 - `ecs-service-actif.png` — service ECS mini-chat-backend : Statut Actif, 1 tâche en cours, 1 Sain
-- `ecs-metriques-cpu-ram.png` — métriques Container Insights : CPU max 16.2%, RAM max 2.27%
+- `ecs-metriques-cpu-ram.png` — métriques Cloud Monitoring : CPU max 16.2%, RAM max 2.27%
 
 ---
 
@@ -443,8 +443,8 @@ La politique SNS autorise explicitement `cloudwatch.amazonaws.com` à publier da
 
 | KPI | Objectif SLA | Alarme configurée |
 |-----|-------------|------------------|
-| Disponibilité mensuelle | ≥ 99% | RunningTaskCount < 1 → ALARM + email |
-| Taux d'erreurs | < 2% HTTP 5xx / 24h | HTTPCode_ELB_5XX_Count > 10 → ALARM |
+| Disponibilité mensuelle | ≥ 99% | instance count Cloud Run < 1 → ALARM + email |
+| Taux d'erreurs | < 2% HTTP 5xx / 24h | request_count 5xx > 10 → ALARM |
 | Ressources CPU | < 80% | CPUUtilization > 80% 10 min → ALARM |
 | Stockage données | > 2 Go libres | FreeStorageSpace < 2 Go → ALARM |
 | Restauration | < 2 heures | Rolling update automatique ou redeploi |
@@ -467,8 +467,8 @@ La politique SNS autorise explicitement `cloudwatch.amazonaws.com` à publier da
 **Symptôme observé par l'utilisateur :**
 Page HTTPS affichée, mais impossible de s'inscrire ou se connecter. Console du navigateur :
 ```
-Mixed Content: The page at 'https://chat.ibrahimbabikir.fr' was loaded over HTTPS,
-but requested an insecure XMLHttpRequest endpoint 'http://chat.ibrahimbabikir.fr:3000/auth/register'
+Mixed Content: The page at 'https://mini-chat-backend-py4vurg4oq-ew.a.run.app' was loaded over HTTPS,
+but requested an insecure XMLHttpRequest endpoint 'http://mini-chat-backend-py4vurg4oq-ew.a.run.app:3000/auth/register'
 ```
 
 **Démarche d'investigation (3 étapes) :**
@@ -507,7 +507,7 @@ En production derrière un ALB, les URLs relatives suffisent. Hardcoder le proto
 **Titre :** Exemple de recherche — Renommer des ressources Terraform sans les détruire
 
 **Problème constaté (point de départ de la recherche) :**
-Lors de la migration vers ECS Fargate, les security groups ont été renommés pour plus de lisibilité.
+Lors de la migration vers Cloud Run, les security groups ont été renommés pour plus de lisibilité.
 Terraform a voulu détruire et recréer les ressources renommées → coupure de service, perte des configurations.
 
 ```
@@ -550,7 +550,7 @@ Cette commande a été intégrée directement dans le pipeline CI/CD (`ci-cd.yml
 
 | Difficulté | Cause | Solution |
 |------------|-------|----------|
-| Containers ne démarraient pas sur EC2 | `user_data` asynchrone — scripts non terminés au moment du déploiement | Migration vers ECS Fargate : plus de user_data, container démarre directement depuis ECR |
+| Containers ne démarraient pas sur EC2 | `user_data` asynchrone — scripts non terminés au moment du déploiement | Migration vers Cloud Run : plus de user_data, container démarre directement depuis Artifact Registry |
 | Renommage Terraform → destroy + recreate | Terraform interprète un renommage comme une destruction | Blocs `moved {}` dans moved.tf : state mis à jour sans toucher aux ressources AWS |
 | DB Subnet Group conflit dans le state | Double entrée Terraform après migration | `terraform state rm` + `terraform import` intégrés dans le pipeline |
 | Schema DB non initialisé sur RDS | init.sql uniquement local, RDS inaccessible directement | `initSchema()` non bloquant au démarrage du backend |
@@ -565,17 +565,17 @@ Cette commande a été intégrée directement dans le pipeline CI/CD (`ci-cd.yml
 
 **Phase 1 → Phase 2 :**
 
-| Critère | Phase 1 — EC2 | Phase 2 — ECS Fargate |
+| Critère | Phase 1 — EC2 | Phase 2 — Cloud Run |
 |---------|--------------|----------------------|
 | Déploiement | SSH + docker compose | git push → automatique |
-| Secrets | .env en clair | SSM SecureString AES-256 |
-| Redémarrage si crash | Manuel | Automatique (ECS Service) |
+| Secrets | .env en clair | Secret Manager (chiffré) AES-256 |
+| Redémarrage si crash | Manuel | Automatique (Cloud Run Service) |
 | SSH requis | Oui | Non |
 | Tracabilité | Aucune | Hash commit exact sur chaque image |
 | Rolling update | Non — coupure ~30s | Oui — zéro downtime |
 | Tests bloquants | Non | Oui — 9 Jest + smoke tests |
 | HTTPS | Non | Oui — ACM + TLS 1.3 |
-| Alertes | Non | Oui — 4 alarmes CloudWatch + SNS email |
+| Alertes | Non | Oui — 4 alarmes Cloud Monitoring + SNS email |
 
 **Compétences ASD couvertes :**
 
@@ -584,12 +584,12 @@ Cette commande a été intégrée directement dans le pipeline CI/CD (`ci-cd.yml
 | Automatiser la création de serveurs | Terraform IaC — toute l'infra en code |
 | Automatiser le déploiement | GitHub Actions 4 jobs — push = déploiement complet |
 | Sécuriser l'infrastructure | SSM, pas de SSH, Security Groups, HTTPS, tests CI |
-| Mettre en production dans le cloud | ECS Fargate AWS eu-west-3, ALB, ACM |
+| Mettre en production dans le cloud | Cloud Run GCP europe-west1, ALB, ACM |
 | Préparer un environnement de test | Jest 9 tests + smoke tests Docker pre-prod |
-| Gérer le stockage des données | RDS MySQL subnet privé, backup 1 jour, logs CloudWatch 7 jours |
-| Gérer des containers | Docker multi-stage, ECS Fargate, ECR, rolling update |
-| Définir des statistiques de services | BC03 : KPI/SLA + 4 alarmes CloudWatch + SNS |
-| Exploiter une solution de supervision | CloudWatch logs + alarmes + incident réel résolu |
+| Gérer le stockage des données | Cloud SQL MySQL subnet privé, backup 1 jour, logs Cloud Monitoring 7 jours |
+| Gérer des containers | Docker multi-stage, Cloud Run, ECR, rolling update |
+| Définir des statistiques de services | BC03 : KPI/SLA + 4 alarmes Cloud Monitoring + SNS |
+| Exploiter une solution de supervision | Cloud Monitoring logs + alarmes + incident réel résolu |
 
 ---
 
@@ -598,11 +598,11 @@ Cette commande a été intégrée directement dans le pipeline CI/CD (`ci-cd.yml
 **Titre :** Synthèse et conclusion
 
 **Satisfactions :**
-- Architecture ECS Fargate moderne — zéro gestion de serveur, zéro SSH, zéro downtime
+- Architecture Cloud Run moderne — zéro gestion de serveur, zéro SSH, zéro downtime
 - Un seul `git push` déclenche tests, smoke tests, build et déploiement automatiquement
 - Secrets 100% sécurisés : du code source jusqu'au container en production
-- HTTPS opérationnel sur un domaine propre (chat.ibrahimbabikir.fr) avec TLS 1.3
-- Supervision active : 4 alarmes CloudWatch liées aux SLA, notifications email par SNS
+- HTTPS opérationnel sur un domaine propre (mini-chat-backend-py4vurg4oq-ew.a.run.app) avec TLS 1.3
+- Supervision active : 4 alarmes Cloud Monitoring liées aux SLA, notifications email par SNS
 - Tracabilité totale : on sait à tout moment quel commit exact tourne en production
 
 **Difficultés principales :**
@@ -613,12 +613,12 @@ Cette commande a été intégrée directement dans le pipeline CI/CD (`ci-cd.yml
 - Quota IAM de 10 politiques managées atteint en cours de migration
 
 **Ce que j'ai appris :**
-ECS Fargate résout structurellement les problèmes de déploiement continu sur EC2.
+Cloud Run résout structurellement les problèmes de déploiement continu sur EC2.
 Terraform est puissant mais exige une gestion rigoureuse du state dès qu'on renomme des ressources.
 Le frontend doit être pensé pour plusieurs environnements dès le départ (URLs relatives, pas de hardcoding).
 
 **Évolutions prévues :**
-- Auto Scaling ECS (min 1 / max 3 containers selon charge CPU)
+- Auto Scaling Cloud Run (min 1 / max 3 containers selon charge CPU)
 - Environnement de staging (branche `staging` → ECS service dédié)
 - ECR Lifecycle Policy (garder les 10 dernières images, purger le reste)
 
@@ -626,4 +626,4 @@ Le frontend doit être pensé pour plusieurs environnements dès le départ (URL
 
 *Présentation Soutenance ASD Niveau 6 — Babikir Ibrahim — Mai 2026*
 *Référentiel : RE TP-01414-01 — Canevas diaporama respecté intégralement*
-*Projet complet : github.com/babs235/mini-chat — Application : https://chat.ibrahimbabikir.fr*
+*Projet complet : github.com/babs235/mini-chat — Application : https://mini-chat-backend-py4vurg4oq-ew.a.run.app*

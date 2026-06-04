@@ -1,4 +1,4 @@
-# PROMPT — Dossier de Projet Final
+﻿# PROMPT — Dossier de Projet Final
 ## Mini-Chat — Administrateur Système DevOps — ASD Niveau 6
 
 ---
@@ -19,13 +19,13 @@
 
 | Champ | Valeur |
 |-------|--------|
-| Titre | Mini-Chat — Application de messagerie cloud-native sur AWS |
+| Titre | Mini-Chat — Application de messagerie cloud-native sur GCP |
 | Candidat | Babikir Ibrahim |
 | Formation | Administrateur Système DevOps — Titre RNCP Niveau 6 |
 | Référentiel | RE TP-01414-01 |
 | Période | Mars → Mai 2026 |
 | Dépôt GitHub | github.com/babs235/mini-chat |
-| Production | https://chat.ibrahimbabikir.fr |
+| Production | https://mini-chat-backend-py4vurg4oq-ew.a.run.app |
 
 ---
 
@@ -40,7 +40,7 @@ L'idée est simple : une application de messagerie où des utilisateurs peuvent 
 Le projet a évolué en trois phases réelles, chacune apportant une correction des limites de la phase précédente :
 - **Phase 0 (Mars)** : application fonctionnelle en local
 - **Phase 1 (Avril)** : premier déploiement AWS sur EC2, avec ses problèmes
-- **Phase 2 (Mai)** : migration ECS Fargate, pipeline fiable, HTTPS, supervision complète
+- **Phase 2 (Mai)** : migration Cloud Run, pipeline fiable, HTTPS, supervision complète
 
 Ce document retrace chaque étape dans l'ordre où elle s'est produite, avec les commandes utilisées, les erreurs rencontrées et les raisons des choix faits.
 
@@ -55,13 +55,13 @@ Ce document retrace chaque étape dans l'ordre où elle s'est produite, avec les
 | Automatiser la création de serveurs | Terraform crée toute l'infrastructure AWS (VPC, ECS, RDS, ALB) en une commande |
 | Automatiser le déploiement d'une infrastructure | Un `git push` déclenche le pipeline GitHub Actions qui applique `terraform apply` |
 | Sécuriser l'infrastructure | Pas de SSH, Security Groups en moindre privilège, HTTPS TLS 1.3, secrets chiffrés SSM |
-| Mettre l'infrastructure en production dans le cloud | Application déployée sur AWS ECS Fargate eu-west-3 (Paris), HTTPS, domaine propre |
+| Mettre l'infrastructure en production dans le cloud | Application déployée sur Google Cloud Run europe-west1 (Belgique), HTTPS, domaine propre |
 | Préparer un environnement de test | 9 tests Jest automatisés + smoke tests Docker qui testent l'image ECR avant déploiement |
-| Gérer le stockage des données | RDS MySQL en subnet privé, backup 1 jour, accès restreint aux seuls containers ECS |
-| Gérer des containers | Dockerfile multi-stage Alpine, ECR, ECS Fargate, rolling update, Task Definition |
+| Gérer le stockage des données | Cloud SQL MySQL en subnet privé, backup 1 jour, accès restreint aux seuls containers ECS |
+| Gérer des containers | Dockerfile multi-stage Alpine, ECR, Cloud Run, rolling update, Task Definition |
 | Automatiser la mise en production | Pipeline 4 jobs séquentiels : tests → build ECR → smoke tests → terraform deploy |
-| Définir des statistiques de services | KPI et SLA définis, 4 alarmes CloudWatch avec seuils alignés sur les objectifs |
-| Exploiter une solution de supervision | CloudWatch Logs + Métriques, incident réel résolu via les logs, notifications SNS email |
+| Définir des statistiques de services | KPI et SLA définis, 4 alarmes Cloud Monitoring avec seuils alignés sur les objectifs |
+| Exploiter une solution de supervision | Cloud Logging + Métriques, incident réel résolu via les logs, notifications SNS email |
 
 ---
 
@@ -77,13 +77,13 @@ Projet réalisé en formation ASD Niveau 6. L'objectif : démontrer la maîtrise
 
 - Backend API REST (Node.js/Express)
 - Frontend web (HTML/CSS/JS, glassmorphism, responsive)
-- Base de données MySQL managée (AWS RDS)
+- Base de données MySQL managée (Google Cloud SQL)
 - Conteneurisation Docker multi-stage
 - Infrastructure AWS entièrement en Terraform
 - Pipeline CI/CD automatisé 4 jobs (GitHub Actions)
-- Secrets chiffrés (AWS SSM Parameter Store)
-- HTTPS sur domaine propre (AWS ACM + IONOS DNS)
-- Supervision (CloudWatch + 4 alarmes + notifications email SNS)
+- Secrets chiffrés (Google Secret Manager)
+- HTTPS sur domaine propre (Cloud Run (HTTPS automatique) + IONOS DNS)
+- Supervision (Cloud Monitoring + 4 alarmes + notifications email SNS)
 - Tests automatisés (Jest + smoke tests)
 
 ## Ce qui n'est pas inclus
@@ -96,7 +96,7 @@ Projet réalisé en formation ASD Niveau 6. L'objectif : démontrer la maîtrise
 
 | Contrainte | Impact |
 |-----------|--------|
-| Free Tier AWS | ECS 0.25 vCPU / 512 MB, RDS db.t3.micro 20 Go — ressources minimales |
+| Free Tier AWS | ECS 0.25 vCPU / 512 MB, Cloud SQL db-f1-micro 20 Go — ressources minimales |
 | Domaine IONOS | Pas de Route 53 → CNAMEs ajoutés manuellement dans le panel IONOS |
 | Projet solo | Pas de DynamoDB lock (aucun accès concurrent au state Terraform possible) |
 | IAM quota | 10 politiques managées maximum par utilisateur — gestion rigoureuse |
@@ -109,7 +109,7 @@ Projet réalisé en formation ASD Niveau 6. L'objectif : démontrer la maîtrise
 | Code source complet | ✅ github.com/babs235/mini-chat |
 | Infrastructure as Code (7 fichiers Terraform) | ✅ Déployée |
 | Pipeline CI/CD (4 jobs) | ✅ Opérationnel |
-| Application HTTPS en production | ✅ https://chat.ibrahimbabikir.fr |
+| Application HTTPS en production | ✅ https://mini-chat-backend-py4vurg4oq-ew.a.run.app |
 | Supervision (4 alarmes + SNS) | ✅ Opérationnel |
 | Guide de déploiement | ✅ |
 | Cahier des charges | ✅ |
@@ -323,9 +323,9 @@ git commit -m "installation du monitoring(prometheus et graffana pour voir les p
 Prometheus avec prom-client exposait une route `/metrics`. Des alertes étaient configurées sur Discord via Alertmanager.
 
 **Pourquoi ce stack a été retiré le 2 mai ?**
-Prometheus et Grafana tournaient uniquement sur le PC local — ils ne supervisaient pas le service déployé sur AWS. L'application en production tourne sur ECS Fargate en eu-west-3. Un Prometheus sur le PC local ne voit pas ce container.
+Prometheus et Grafana tournaient uniquement sur le PC local — ils ne supervisaient pas le service déployé sur GCP. L'application en production tourne sur Cloud Run en europe-west1. Un Prometheus sur le PC local ne voit pas ce container.
 
-Déployer Prometheus sur AWS aurait nécessité une instance EC2 ou un container ECS dédié, un port 9090 ouvert dans le Security Group, une configuration de scraping vers l'endpoint ECS — soit plus de complexité pour un résultat inférieur à CloudWatch qui est déjà intégré nativement à ECS : logs automatiques, métriques CPU/RAM/ALB/RDS sans configuration.
+Déployer Prometheus sur GCP aurait nécessité une instance EC2 ou un container ECS dédié, un port 9090 ouvert dans le Security Group, une configuration de scraping vers l'endpoint ECS — soit plus de complexité pour un résultat inférieur à Cloud Monitoring qui est déjà intégré nativement à ECS : logs automatiques, métriques CPU/RAM/ALB/RDS sans configuration.
 
 ---
 
@@ -354,7 +354,7 @@ jobs:
   build:
     needs: tests
     steps:
-      - name: docker build + push ECR
+      - name: docker build + push Artifact Registry
 
   deploy:
     needs: build
@@ -372,7 +372,7 @@ Ansible semblait l'outil naturel pour provisionner un serveur EC2 — c'est un s
 
 ### 7 avril — Terraform : première infrastructure complète
 
-Écriture de l'infrastructure AWS entièrement en Terraform : VPC, subnets, Internet Gateway, Security Groups, instance EC2, RDS MySQL.
+Écriture de l'infrastructure AWS entièrement en Terraform : VPC, subnets, Internet Gateway, Security Groups, instance EC2, Cloud SQL MySQL.
 
 ```bash
 cd terraform
@@ -409,7 +409,7 @@ git commit -m "utilisation de appleboy ssh-action pour le deploiement"
 
 ### 10 avril — Connexion RDS depuis EC2
 
-Première connexion réussie entre l'application Node.js sur EC2 et RDS MySQL.
+Première connexion réussie entre l'application Node.js sur EC2 et Cloud SQL MySQL.
 
 ```bash
 # Récupérer l'endpoint RDS depuis Terraform
@@ -538,7 +538,7 @@ git commit -m "revenir a t3.small et optimiser nettoyage docker pour free tier"
 git commit -m "placeholder pour nouvelle IP EC2 - ancienne instance inaccessible"
 ```
 
-**Décision finale après cette journée :** l'architecture EC2 + user_data + Ansible + Docker Compose est trop fragile. L'image Docker doit être construite en dehors du serveur. Migration vers ECS Fargate.
+**Décision finale après cette journée :** l'architecture EC2 + user_data + Ansible + Docker Compose est trop fragile. L'image Docker doit être construite en dehors du serveur. Migration vers Cloud Run.
 
 ```bash
 git commit -m "ajout job build-and-push Docker images vers ECR"
@@ -547,21 +547,21 @@ git commit -m "retrait de ansible"
 
 ---
 
-## PHASE 2 — 2 MAI 2026 : Migration complète vers ECS Fargate
+## PHASE 2 — 2 MAI 2026 : Migration complète vers Cloud Run
 
 ---
 
 ### 2 mai matin — Réécriture de toute l'infrastructure
 
-Migration de EC2 vers ECS Fargate en une journée. Réécriture des fichiers Terraform.
+Migration de EC2 vers Cloud Run en une journée. Réécriture des fichiers Terraform.
 
 ```bash
-git commit -m "migration de EC2 vers ECS Fargate avec ALB et secrets SSM"
+git commit -m "migration de EC2 vers Cloud Run avec ALB et secrets SSM"
 ```
 
-**Pourquoi ECS Fargate résout tous les problèmes d'EC2 :**
+**Pourquoi Cloud Run résout tous les problèmes d'EC2 :**
 
-| Problème EC2 | Solution ECS Fargate |
+| Problème EC2 | Solution Cloud Run |
 |-------------|---------------------|
 | user_data asynchrone et fragile | Plus de user_data — Task Definition déclarative |
 | IP qui change | ALB avec DNS fixe (ne change jamais) |
@@ -571,7 +571,7 @@ git commit -m "migration de EC2 vers ECS Fargate avec ALB et secrets SSM"
 | Pas de tracabilité | Chaque image taguée avec le SHA du commit Git |
 
 **`assign_public_ip = true` dans le Service ECS :**
-Sans NAT Gateway (32$/mois), les containers ECS ont besoin d'une IP publique pour joindre ECR (pull d'image) et CloudWatch (envoi de logs). L'IP publique sert uniquement au trafic sortant — le Security Group `mini-chat-ecs-sg` bloque tout accès entrant direct depuis Internet. Seul l'ALB peut atteindre le port 3000.
+Sans NAT Gateway (32$/mois), les containers ECS ont besoin d'une IP publique pour joindre ECR (pull d'image) et Cloud Monitoring (envoi de logs). L'IP publique sert uniquement au trafic sortant — le Security Group `mini-chat-ecs-sg` bloque tout accès entrant direct depuis Internet. Seul l'ALB peut atteindre le port 3000.
 
 ---
 
@@ -712,14 +712,14 @@ describe("Auth routes", () => {
 
 ---
 
-### 3 mai — Container Insights + 4 alarmes CloudWatch
+### 3 mai — Cloud Monitoring + 4 alarmes Cloud Monitoring
 
-Activation de Container Insights sur le cluster ECS (prérequis pour `RunningTaskCount`) et création des alarmes dans `terraform/monitoring.tf`.
+Activation de Cloud Monitoring sur le cluster ECS (prérequis pour `instance count Cloud Run`) et création des alarmes dans `terraform/monitoring.tf`.
 
 ```hcl
-# terraform/ecs.tf — Container Insights activé
+# terraform/ecs.tf — Cloud Monitoring activé
 resource "aws_ecs_cluster" "mini_chat" {
-  name = "mini-chat-cluster"
+  name = "mini-chat-backend"
   setting {
     name  = "containerInsights"
     value = "enabled"
@@ -755,7 +755,7 @@ resource "aws_sns_topic_policy" "alerts_policy" {
 resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped" {
   alarm_name          = "mini-chat-ecs-task-stopped"
   namespace           = "ECS/ContainerInsights"
-  metric_name         = "RunningTaskCount"
+  metric_name         = "instance count Cloud Run"
   statistic           = "Average"
   period              = 60
   evaluation_periods  = 1
@@ -771,21 +771,21 @@ resource "aws_cloudwatch_metric_alarm" "ecs_task_stopped" {
 ```
 
 **Pourquoi la politique SNS est obligatoire ?**
-Par défaut, CloudWatch n'a pas le droit de publier dans un topic SNS. Sans cette politique explicite autorisant `cloudwatch.amazonaws.com`, les alarmes changent d'état (OK → ALARM) mais n'envoient aucune notification. Les alertes restent muettes.
+Par défaut, Cloud Monitoring n'a pas le droit de publier dans un topic SNS. Sans cette politique explicite autorisant `cloudwatch.amazonaws.com`, les alarmes changent d'état (OK → ALARM) mais n'envoient aucune notification. Les alertes restent muettes.
 
-**Pourquoi Container Insights est obligatoire pour l'alarme ECS stopped ?**
-La métrique `RunningTaskCount` appartient au namespace `ECS/ContainerInsights`. Elle n'existe pas sans activation de Container Insights sur le cluster. Sans activation, l'alarme reste en état `INSUFFICIENT_DATA` — elle ne se déclenche jamais, même si le container s'arrête.
+**Pourquoi Cloud Monitoring est obligatoire pour l'alarme ECS stopped ?**
+La métrique `instance count Cloud Run` appartient au namespace `ECS/ContainerInsights`. Elle n'existe pas sans activation de Cloud Monitoring sur le cluster. Sans activation, l'alarme reste en état `INSUFFICIENT_DATA` — elle ne se déclenche jamais, même si le container s'arrête.
 
 ```bash
-git commit -m "activation de Container Insights et creation des alarmes CloudWatch et SNS"
+git commit -m "activation de Cloud Monitoring et creation des alarmes Cloud Monitoring et SNS"
 ```
 
 **4 alarmes configurées :**
 
 | Alarme | Métrique | Seuil | Notification |
 |-------|---------|-------|-------------|
-| `mini-chat-ecs-task-stopped` | RunningTaskCount | < 1 pendant 1 min | Email SNS |
-| `mini-chat-alb-5xx-eleve` | HTTPCode_ELB_5XX_Count | > 10 sur 5 min | Email SNS |
+| `mini-chat-ecs-task-stopped` | instance count Cloud Run | < 1 pendant 1 min | Email SNS |
+| `mini-chat-alb-5xx-eleve` | request_count 5xx | > 10 sur 5 min | Email SNS |
 | `mini-chat-ecs-cpu-eleve` | CPUUtilization | > 80% pendant 10 min | Email SNS |
 | `mini-chat-rds-espace-disque-faible` | FreeStorageSpace | < 2 Go | Email SNS |
 
@@ -841,14 +841,14 @@ git commit -m "ajout de mon address pour etre informer et ajout d'un envir de te
 
 ---
 
-### 3 mai — HTTPS avec AWS ACM et domaine IONOS
+### 3 mai — HTTPS avec Cloud Run (HTTPS automatique) et domaine IONOS
 
-Passage de HTTP à HTTPS avec un certificat SSL géré par AWS Certificate Manager.
+Passage de HTTP à HTTPS avec un certificat SSL géré par Cloud Run (certificat automatique).
 
 ```hcl
 # terraform/ecs.tf
 resource "aws_acm_certificate" "mini_chat" {
-  domain_name       = "chat.ibrahimbabikir.fr"
+  domain_name       = "mini-chat-backend-py4vurg4oq-ew.a.run.app"
   validation_method = "DNS"
   lifecycle {
     create_before_destroy = true
@@ -886,8 +886,8 @@ resource "aws_lb_listener" "https" {
 ```
 1. Terraform génère un CNAME de validation ACM
 2. Dans le panel DNS IONOS — ajouter :
-   CNAME validation : _acme-xxxxx.chat.ibrahimbabikir.fr → validation.acm.amazonaws.com
-   CNAME sous-domaine : chat.ibrahimbabikir.fr → mini-chat-alb-xxx.eu-west-3.elb.amazonaws.com
+   CNAME validation : _acme-xxxxx.mini-chat-backend-py4vurg4oq-ew.a.run.app → validation.acm.amazonaws.com
+   CNAME sous-domaine : mini-chat-backend-py4vurg4oq-ew.a.run.app → mini-chat-alb-xxx.europe-west1.elb.amazonaws.com
 3. ACM valide le certificat automatiquement (quelques minutes)
 ```
 
@@ -900,7 +900,7 @@ Route 53 coûte 0,50$/mois par zone hébergée. Le domaine `ibrahimbabikir.fr` �
 git commit -m "ajout d'un fix pour le timing car le ecs a voulu mettre a jour avant que https existe"
 ```
 
-**Solution :** ajout d'un `depends_on` sur le listener HTTPS dans la ressource ECS Service — ECS attend que les deux listeners existent avant de démarrer.
+**Solution :** ajout d'un `depends_on` sur le listener HTTPS dans la ressource Cloud Run Service — ECS attend que les deux listeners existent avant de démarrer.
 
 ```hcl
 resource "aws_ecs_service" "backend" {
@@ -918,8 +918,8 @@ Après passage en HTTPS, l'application était accessible mais impossible de s'in
 
 **Message dans la console du navigateur :**
 ```
-Mixed Content: The page at 'https://chat.ibrahimbabikir.fr' was loaded over HTTPS,
-but requested an insecure XMLHttpRequest endpoint 'http://chat.ibrahimbabikir.fr:3000/auth/register'
+Mixed Content: The page at 'https://mini-chat-backend-py4vurg4oq-ew.a.run.app' was loaded over HTTPS,
+but requested an insecure XMLHttpRequest endpoint 'http://mini-chat-backend-py4vurg4oq-ew.a.run.app:3000/auth/register'
 ```
 
 **Cause identifiée dans `backend/frontend/js/config.js` :**
@@ -948,7 +948,7 @@ const getApiUrl = () => {
 };
 
 const API = getApiUrl();
-// En prod : fetch(`${API}/auth/login`) → fetch('/auth/login') → https://chat.ibrahimbabikir.fr/auth/login
+// En prod : fetch(`${API}/auth/login`) → fetch('/auth/login') → https://mini-chat-backend-py4vurg4oq-ew.a.run.app/auth/login
 // En local : fetch(`${API}/auth/login`) → fetch('http://localhost:3000/auth/login')
 ```
 
@@ -967,7 +967,7 @@ git commit -m "correction de la compatibilite HTTPS en production — les URLs d
 Suppression de tout ce qui était inutile ou obsolète.
 
 ```bash
-git commit -m "suppression complete de Prometheus et Grafana — remplace par CloudWatch"
+git commit -m "suppression complete de Prometheus et Grafana — remplace par Cloud Monitoring"
 # → suppression prom-client, /metrics route, prometheus.yml, alertmanager
 
 git commit -m "suppression des dependances inutilisees socket.io et express-session"
@@ -1005,28 +1005,28 @@ GitHub Actions (4 jobs séquentiels)
         └── ECS déploie la nouvelle image (rolling update)
                         |
                         ↓
-        AWS eu-west-3 (Paris)
+        GCP europe-west1 (Belgique)
         ┌──────────────────────────────────────────────┐
         │                                              │
         │  Utilisateur → HTTPS 443                     │
         │       ↓                                      │
-        │  [ACM — certificat chat.ibrahimbabikir.fr]   │
+        │  [ACM — certificat mini-chat-backend-py4vurg4oq-ew.a.run.app]   │
         │       ↓                                      │
         │  [ALB mini-chat-alb]                         │
         │   port 80 → redirect 301 HTTPS               │
         │   port 443 → forward vers ECS                │
         │   health check GET / avant bascule trafic    │
         │       ↓                                      │
-        │  [ECS Fargate — mini-chat-backend]           │
+        │  [Cloud Run — mini-chat-backend]           │
         │   Node.js port 3000                          │
-        │   subnets publics eu-west-3a + eu-west-3c    │
+        │   subnets publics europe-west1a + europe-west1c    │
         │   0.25 vCPU / 512 MB / image ECR:sha-commit  │
         │       ↓                                      │
-        │  [RDS MySQL 8.0 — mini-chat-db]              │
-        │   db.t3.micro / 20 Go gp2                    │
+        │  [Cloud SQL MySQL 8.0 — mini-chat-db]              │
+        │   db-f1-micro / 20 Go gp2                    │
         │   subnets PRIVÉS (inaccessible depuis web)   │
         │                                              │
-        │  CloudWatch Logs /ecs/mini-chat-backend      │
+        │  Cloud Logging /ecs/mini-chat-backend      │
         │  4 Alarmes → SNS → Email                     │
         └──────────────────────────────────────────────┘
 ```
@@ -1061,15 +1061,15 @@ La base de données est invisible depuis Internet, depuis l'ALB et depuis toute 
 | Docker Compose | Environnement local uniquement |
 | Terraform 1.5 | Infrastructure as Code AWS |
 | GitHub Actions | Pipeline CI/CD 4 jobs |
-| AWS ECR | Registre d'images Docker privé |
-| AWS ECS Fargate | Containers sans gestion de serveur |
-| AWS ALB | Load balancer, health checks, rolling update |
-| AWS RDS MySQL 8.0 | Base de données managée, subnet privé |
-| AWS SSM Parameter Store | Secrets chiffrés AES-256 |
-| AWS ACM | Certificat SSL/TLS HTTPS |
-| AWS CloudWatch | Logs + 4 alarmes en production |
-| AWS SNS | Notifications email sur alarmes |
-| AWS S3 | State Terraform chiffré |
+| Google Artifact Registry | Registre d'images Docker privé |
+| Google Cloud Run | Containers sans gestion de serveur |
+| Cloud Run (HTTPS intégré) | Load balancer, health checks, rolling update |
+| Google Cloud SQL MySQL 8.0 | Base de données managée, subnet privé |
+| Google Secret Manager | Secrets chiffrés AES-256 |
+| Cloud Run (HTTPS automatique) | Certificat SSL/TLS HTTPS |
+| Google Cloud Monitoring | Logs + 4 alarmes en production |
+| Cloud Monitoring email | Notifications email sur alarmes |
+| Google Cloud Storage | State Terraform chiffré |
 | Jest + Supertest | 9 tests automatisés backend |
 
 ---
@@ -1080,11 +1080,11 @@ La base de données est invisible depuis Internet, depuis l'ALB et depuis toute 
 
 ## Ce qui fonctionne en production
 
-- Application accessible 24h/24 sur https://chat.ibrahimbabikir.fr
+- Application accessible 24h/24 sur https://mini-chat-backend-py4vurg4oq-ew.a.run.app
 - Déploiement automatique à chaque `git push main` — aucune intervention manuelle
 - Rolling update sans coupure de service
-- 4 alarmes CloudWatch actives — état OK
-- Logs en temps réel dans CloudWatch : "Server started on port 3000" + "Schema initialized"
+- 4 alarmes Cloud Monitoring actives — état OK
+- Logs en temps réel dans Cloud Monitoring : "Server started on port 3000" + "Schema initialized"
 - 9 tests Jest + smoke tests bloquant tout déploiement d'une image cassée
 
 ## Limites assumées et justifiées
@@ -1116,7 +1116,7 @@ La base de données est invisible depuis Internet, depuis l'ALB et depuis toute 
 
 ## Contexte
 
-Lors de la migration vers ECS Fargate, les Security Groups ont été renommés pour plus de cohérence :
+Lors de la migration vers Cloud Run, les Security Groups ont été renommés pour plus de cohérence :
 
 ```
 aws_security_group.alb  →  aws_security_group.alb_sg
@@ -1169,7 +1169,7 @@ Aucune ressource détruite. Aucune coupure de service.
 # Supprimer l'entrée en double du state
 terraform state rm aws_db_subnet_group.mini_chat
 
-# Réimporter la ressource existante dans AWS
+# Réimporter la ressource existante dans GCP
 terraform import aws_db_subnet_group.mini_chat mini-chat-db-subnet-group
 
 # Appliquer — OK
@@ -1225,7 +1225,7 @@ mini-chat/
 └── terraform/
     ├── main.tf                # VPC, subnets, SG, RDS
     ├── ecs.tf                 # IAM, SSM, ECS, ALB, ACM
-    ├── monitoring.tf          # 4 alarmes CloudWatch + SNS
+    ├── monitoring.tf          # 4 alarmes Cloud Monitoring + SNS
     ├── variables.tf
     ├── outputs.tf
     ├── moved.tf               # Historique renommages
@@ -1236,19 +1236,19 @@ mini-chat/
 
 | Secret | Jobs | Destination finale |
 |--------|------|--------------------|
-| `AWS_ACCESS_KEY_ID` | 2, 3, 4 | Authentification AWS CLI |
-| `AWS_SECRET_ACCESS_KEY` | 2, 3, 4 | Authentification AWS CLI |
+| `GCP_SA_KEY` | 2, 3, 4 | Authentification gcloud CLI |
+| `GCP_SA_KEY` | 2, 3, 4 | Authentification gcloud CLI |
 | `DB_PASSWORD` | 4 (TF_VAR_db_password) | SSM → container ECS |
 | `JWT_SECRET` | 4 (TF_VAR_jwt_secret) | SSM → container ECS |
 
 ## Annexe C — Captures d'écran à insérer
 
-> 1. `cloudwatch-logs-demarrage.png` — CloudWatch logs : "Server started on port 3000" puis "Schema initialized"
-> 2. `cloudwatch-alarmes-ok.png` — CloudWatch Overview : 4 alarmes, En alarme : 0, OK : 4
+> 1. `cloudwatch-logs-demarrage.png` — Cloud Monitoring logs : "Server started on port 3000" puis "Schema initialized"
+> 2. `cloudwatch-alarmes-ok.png` — Cloud Monitoring Overview : 4 alarmes, En alarme : 0, OK : 4
 > 3. `ecs-service-actif.png` — ECS service : Statut Actif, 1 tâche en cours, 1 Sain
-> 4. `ecs-metriques-cpu-ram.png` — Container Insights : CPU max 16.2%, RAM max 2.27%
+> 4. `ecs-metriques-cpu-ram.png` — Cloud Monitoring : CPU max 16.2%, RAM max 2.27%
 > 5. `github-actions-4-jobs-verts.png` — GitHub Actions : 4 jobs tous verts
-> 6. `app-connexion-https.png` — chat.ibrahimbabikir.fr avec cadenas SSL vert
+> 6. `app-connexion-https.png` — mini-chat-backend-py4vurg4oq-ew.a.run.app avec cadenas SSL vert
 > 7. `app-messagerie.png` — Interface chat avec message envoyé
 
 ---

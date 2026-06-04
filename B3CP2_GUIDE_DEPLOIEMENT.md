@@ -1,4 +1,4 @@
-# PROMPT PDF — B3-CP2 Guide de déploiement
+﻿# PROMPT PDF — B3-CP2 Guide de déploiement
 ## Mini-Chat — Administrateur Système DevOps — Niveau 6
 
 ---
@@ -32,7 +32,7 @@
 **Candidat :** Babikir Ibrahim
 **Formation :** Titre Professionnel Administrateur Système DevOps — Niveau 6
 **Période :** 18/05 – 21/05/2026
-**Application en production :** https://chat.ibrahimbabikir.fr
+**Application en production :** https://mini-chat-backend-py4vurg4oq-ew.a.run.app
 **Dépôt de code :** https://github.com/babs235/mini-chat
 
 ---
@@ -50,18 +50,18 @@
 | Docker Desktop | 24+ | `docker --version` |
 | Docker Compose | 2.x (inclus dans Docker Desktop) | `docker compose version` |
 | Git | 2.40+ | `git --version` |
-| AWS CLI | 2.x | `aws --version` |
+| gcloud CLI | 2.x | `gcloud --version` |
 | Terraform | 1.5+ | `terraform --version` |
 
 ### Comptes et accès nécessaires
 
 | Ressource | Usage |
 |-----------|-------|
-| Compte AWS | Déploiement de l'infrastructure (Free Tier suffisant) |
-| Clé IAM AWS | Droits requis : ECS, ECR, RDS, VPC, IAM, CloudWatch, SSM, S3, SNS, ACM |
+| Compte GCP | Déploiement de l'infrastructure (Free Tier suffisant) |
+| Clé IAM AWS | Droits requis : ECS, ECR, RDS, VPC, IAM, Cloud Monitoring, SSM, S3, SNS, ACM |
 | Compte GitHub | Hébergement du code + exécution du pipeline CI/CD |
 | Compte IONOS | Gestion des enregistrements DNS (CNAME vers ALB et validation ACM) |
-| Bucket S3 | `mini-chat-tfstate-babs235` — stockage du state Terraform |
+| Bucket GCS | `mini-chat-asd-tfstate` — stockage du state Terraform |
 
 ### Secrets du projet
 
@@ -69,10 +69,10 @@ Les valeurs confidentielles ne sont jamais écrites dans le code source. Elles s
 
 | Variable | Stockage | Usage |
 |----------|----------|-------|
-| `AWS_ACCESS_KEY_ID` | GitHub Secrets | Authentification AWS dans le pipeline CI/CD |
-| `AWS_SECRET_ACCESS_KEY` | GitHub Secrets | Authentification AWS dans le pipeline CI/CD |
-| `DB_PASSWORD` | GitHub Secrets + AWS SSM `/mini-chat/db_password` | Mot de passe MySQL injecté dans le container ECS |
-| `JWT_SECRET` | GitHub Secrets + AWS SSM `/mini-chat/jwt_secret` | Clé de signature des tokens JWT |
+| `GCP_SA_KEY` | GitHub Secrets | Authentification AWS dans le pipeline CI/CD |
+| `GCP_SA_KEY` | GitHub Secrets | Authentification AWS dans le pipeline CI/CD |
+| `DB_PASSWORD` | GitHub Secrets + Google Secret Manager `/mini-chat/db_password` | Mot de passe MySQL injecté dans le container ECS |
+| `JWT_SECRET` | GitHub Secrets + Google Secret Manager `/mini-chat/jwt_secret` | Clé de signature des tokens JWT |
 
 ---
 
@@ -83,7 +83,7 @@ Les valeurs confidentielles ne sont jamais écrites dans le code source. Elles s
 | Environnement | Infrastructure | Base de données | Accès |
 |---------------|---------------|----------------|-------|
 | **Développement local** | Docker Compose | MySQL dans un container local | http://localhost:3000 |
-| **Production** | AWS ECS Fargate + ALB | AWS RDS MySQL 8.0 | https://chat.ibrahimbabikir.fr |
+| **Production** | Google Cloud Run | Google Cloud SQL MySQL 8.0 | https://mini-chat-backend-py4vurg4oq-ew.a.run.app |
 | **Staging** | Non déployé — prévu en évolution | — | — |
 
 ---
@@ -181,7 +181,7 @@ Tests: 10 passed, 10 total
 
 ---
 
-## 4. Déploiement en production (AWS)
+## 4. Déploiement en production (GCP)
 
 ### 4.1. Vue d'ensemble du pipeline
 
@@ -191,7 +191,7 @@ Le déploiement est **entièrement automatisé**. Un `git push main` suffit pour
 git push main
     │
     ├── Job 1 — Tests Jest (10 tests)           → bloque tout si échec
-    ├── Job 2 — docker build → push ECR         → image taguée :sha-commit
+    ├── Job 2 — docker build → push Artifact Registry         → image taguée :sha-commit
     ├── Job 3 — Smoke tests sur image ECR        → bloque si KO
     └── Job 4 — terraform apply                  → déploiement complet AWS
 ```
@@ -205,23 +205,23 @@ Ces étapes ont été réalisées une fois avant le premier déploiement du proj
 #### Étape 1 — Créer le bucket S3 pour le state Terraform
 
 ```bash
-aws s3 mb s3://mini-chat-tfstate-babs235 --region eu-west-3
-aws s3api put-bucket-versioning \
-  --bucket mini-chat-tfstate-babs235 \
+gcloud storage buckets create gs://mini-chat-asd-tfstate --region europe-west1
+# versioning active par defaut sur GCS \
+  --bucket mini-chat-asd-tfstate \
   --versioning-configuration Status=Enabled
 ```
 
 #### Étape 2 — Créer le registre d'images ECR
 
 ```bash
-aws ecr create-repository \
+gcloud artifacts repositories create mini-chat --format=docker \
   --repository-name mini-chat-backend \
-  --region eu-west-3
+  --region europe-west1
 ```
 
 #### Étape 3 — Configurer les secrets dans GitHub
 
-Dans le dépôt GitHub → Settings → Secrets and variables → Actions, les quatre secrets suivants sont configurés : `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `DB_PASSWORD`, `JWT_SECRET`. Ces valeurs sont injectées automatiquement dans le pipeline sans jamais apparaître dans les logs ou le code.
+Dans le dépôt GitHub → Settings → Secrets and variables → Actions, les quatre secrets suivants sont configurés : `GCP_SA_KEY`, `GCP_SA_KEY`, `DB_PASSWORD`, `JWT_SECRET`. Ces valeurs sont injectées automatiquement dans le pipeline sans jamais apparaître dans les logs ou le code.
 
 #### Étape 4 — Configurer le DNS IONOS
 
@@ -230,7 +230,7 @@ Après le premier `terraform apply`, deux enregistrements CNAME ont été ajout�
 | Sous-domaine | Type | Valeur |
 |-------------|------|--------|
 | `chat` | CNAME | URL ALB obtenue via `terraform output app_url` |
-| `_acme-[hash]` | CNAME | Valeur de validation ACM visible dans AWS Console → Certificate Manager |
+| `_acme-[hash]` | CNAME | Valeur de validation ACM visible dans GCP Console → Certificate Manager |
 
 ### 4.3. Déploiement courant (usage quotidien)
 
@@ -260,10 +260,10 @@ terraform apply
 
 ```
 terraform/
-├── provider.tf      → Provider AWS + backend state S3 (mini-chat-tfstate-babs235)
-├── main.tf          → VPC, sous-réseaux, Security Groups, RDS MySQL, ALB
-├── ecs.tf           → IAM, SSM secrets, CloudWatch logs, ECS, ACM
-├── monitoring.tf    → 4 alarmes CloudWatch + topic SNS
+├── provider.tf      → Provider AWS + backend state S3 (mini-chat-asd-tfstate)
+├── main.tf          → VPC, sous-réseaux, Security Groups, Cloud SQL MySQL, ALB
+├── ecs.tf           → IAM, SSM secrets, Cloud Monitoring logs, ECS, ACM
+├── monitoring.tf    → 4 alarmes Cloud Monitoring + topic SNS
 ├── variables.tf     → Variables d'entrée (région, secrets, image_tag)
 ├── outputs.tf       → URL ALB, endpoint RDS, noms cluster/service ECS
 └── moved.tf         → Historique des renommages de ressources
@@ -283,10 +283,10 @@ terraform/
 | `DB_USER` | Terraform — valeur fixe | Utilisateur MySQL |
 | `DB_NAME` | Terraform — valeur fixe | `mini_chat` |
 | `NODE_ENV` | Terraform — valeur fixe | `production` |
-| `DB_PASSWORD` | AWS SSM `/mini-chat/db_password` | Injecté chiffré au démarrage — jamais visible en clair dans les logs |
-| `JWT_SECRET` | AWS SSM `/mini-chat/jwt_secret` | Injecté chiffré au démarrage — jamais visible en clair dans les logs |
+| `DB_PASSWORD` | Google Secret Manager `/mini-chat/db_password` | Injecté chiffré au démarrage — jamais visible en clair dans les logs |
+| `JWT_SECRET` | Google Secret Manager `/mini-chat/jwt_secret` | Injecté chiffré au démarrage — jamais visible en clair dans les logs |
 
-### 5.2. Configuration du container ECS Fargate
+### 5.2. Configuration du container Cloud Run
 
 | Paramètre | Valeur |
 |-----------|--------|
@@ -295,14 +295,14 @@ terraform/
 | Nombre de containers actifs | 1 |
 | Port exposé | 3000 |
 | Stratégie de déploiement | Rolling update (zéro downtime) |
-| Health check ALB | `GET /` → HTTP 200 |
+| Health check Cloud Run | `GET /` → HTTP 200 |
 
-### 5.3. Configuration RDS MySQL
+### 5.3. Configuration Cloud SQL MySQL
 
 | Paramètre | Valeur |
 |-----------|--------|
 | Moteur | MySQL 8.0 |
-| Classe d'instance | db.t3.micro |
+| Classe d'instance | db-f1-micro |
 | Stockage | 20 Go (gp2) |
 | Réseau | Sous-réseau privé (inaccessible depuis Internet) |
 | Backup | 1 jour de rétention |
@@ -328,35 +328,35 @@ La base de données est **totalement invisible depuis Internet**. Aucun port SSH
 
 ```bash
 # Health check applicatif
-curl https://chat.ibrahimbabikir.fr/
+curl https://mini-chat-backend-py4vurg4oq-ew.a.run.app/
 # Attendu : "Backend OK"
 
 # HTTPS actif et redirection HTTP
-curl -I http://chat.ibrahimbabikir.fr/
+curl -I http://mini-chat-backend-py4vurg4oq-ew.a.run.app/
 # Attendu : HTTP/1.1 301 Moved Permanently
 
 # Validation active
 curl -s -o /dev/null -w "%{http_code}" \
-  -X POST https://chat.ibrahimbabikir.fr/auth/register \
+  -X POST https://mini-chat-backend-py4vurg4oq-ew.a.run.app/auth/register \
   -H "Content-Type: application/json" -d '{}'
 # Attendu : 400
 
 # Protection JWT active
 curl -s -o /dev/null -w "%{http_code}" \
-  https://chat.ibrahimbabikir.fr/messages
+  https://mini-chat-backend-py4vurg4oq-ew.a.run.app/messages
 # Attendu : 403
 ```
 
-### 6.2. Vérification dans AWS Console
+### 6.2. Vérification dans GCP Console
 
-| Élément | Chemin dans AWS Console | État attendu |
+| Élément | Chemin dans GCP Console | État attendu |
 |---------|------------------------|--------------|
-| ECS Service | ECS → mini-chat-cluster → mini-chat-backend | Running: 1, Health: Healthy |
+| Cloud Run Service | ECS → mini-chat-backend → mini-chat-backend | Running: 1, Health: Healthy |
 | RDS | RDS → Databases → mini-chat-db | Status: Available |
 | ALB | EC2 → Load Balancers → mini-chat-alb | State: Active |
-| Certificat SSL | ACM → chat.ibrahimbabikir.fr | Status: Issued |
-| Alarmes | CloudWatch → Alarms | 4 alarmes en état OK |
-| Logs | CloudWatch → /ecs/mini-chat-backend | Logs récents présents |
+| Certificat SSL | ACM → mini-chat-backend-py4vurg4oq-ew.a.run.app | Status: Issued |
+| Alarmes | Cloud Monitoring → Alarms | 4 alarmes en état OK |
+| Logs | Cloud Monitoring → /ecs/mini-chat-backend | Logs récents présents |
 
 ### 6.3. Vérification via Terraform
 
@@ -367,14 +367,14 @@ terraform output
 
 Sortie attendue :
 ```
-app_url     = "https://chat.ibrahimbabikir.fr"
-ecs_cluster = "mini-chat-cluster"
+app_url     = "https://mini-chat-backend-py4vurg4oq-ew.a.run.app"
+ecs_cluster = "mini-chat-backend"
 ecs_service = "mini-chat-backend"
 ```
 
 ### 6.4. Test fonctionnel complet
 
-1. Ouvrir https://chat.ibrahimbabikir.fr dans un navigateur
+1. Ouvrir https://mini-chat-backend-py4vurg4oq-ew.a.run.app dans un navigateur
 2. Créer un compte → vérifier HTTP 201 dans les outils développeur
 3. Se connecter → vérifier la réception d'un token JWT
 4. Envoyer un message → vérifier l'affichage dans l'interface
@@ -389,16 +389,16 @@ ecs_service = "mini-chat-backend"
 ### 7.1. Consulter les logs en temps réel
 
 ```bash
-aws logs tail /ecs/mini-chat-backend --follow --region eu-west-3
+gcloud logging read /ecs/mini-chat-backend --follow --region europe-west1
 ```
 
-Ou via AWS Console : CloudWatch → Log groups → /ecs/mini-chat-backend
+Ou via AWS Console : Cloud Monitoring → Log groups → /ecs/mini-chat-backend
 
-### 7.2. Interpréter les alarmes CloudWatch
+### 7.2. Interpréter les alarmes Cloud Monitoring
 
 | Alarme | Déclencheur | Action corrective |
 |--------|-------------|------------------|
-| Container stoppé | ECS RunningTaskCount < 1 | Vérifier les logs du container — chercher l'erreur de démarrage |
+| Container stoppé | ECS instance count Cloud Run < 1 | Vérifier les logs du container — chercher l'erreur de démarrage |
 | Erreurs 5xx élevées | > 10 erreurs HTTP 5xx sur 5 min | Consulter les logs applicatifs — souvent une erreur base de données |
 | CPU élevé | CPU > 80 % pendant 10 min | Analyser le nombre de requêtes actives — envisager l'auto-scaling |
 | Disque RDS faible | Espace libre < 2 Go | Augmenter le stockage RDS ou purger les données anciennes |
@@ -407,10 +407,10 @@ Ou via AWS Console : CloudWatch → Log groups → /ecs/mini-chat-backend
 
 ```bash
 aws ecs update-service \
-  --cluster mini-chat-cluster \
+  --cluster mini-chat-backend \
   --service mini-chat-backend \
   --force-new-deployment \
-  --region eu-west-3
+  --region europe-west1
 ```
 
 ### 7.4. Détruire l'infrastructure (libérer les ressources AWS)
@@ -431,7 +431,7 @@ terraform destroy
 | Symptôme | Cause probable | Solution |
 |----------|---------------|---------|
 | Pipeline Job 4 — "resource already exists in state" | Conflit dans le state Terraform (double entrée) | Le pipeline contient automatiquement `terraform state rm` + `terraform import` pour résoudre ce cas |
-| Container ECS s'arrête immédiatement | RDS pas disponible ou variable d'environnement incorrecte | Consulter les logs CloudWatch `/ecs/mini-chat-backend` |
+| Container ECS s'arrête immédiatement | RDS pas disponible ou variable d'environnement incorrecte | Consulter les logs Cloud Monitoring `/ecs/mini-chat-backend` |
 | API inaccessible sur page HTTPS | Mixed Content — URL hardcodée en HTTP dans le frontend | Vérifier `backend/frontend/js/config.js` — les URLs doivent être relatives en production |
 | `terraform apply` détruit et recrée des ressources | Renommage Terraform sans bloc `moved {}` | Ajouter le bloc correspondant dans `terraform/moved.tf` avant d'appliquer |
 | Alarme "Container stoppé" déclenchée brièvement | ECS a redémarré le container après une erreur transitoire | Consulter les logs pour identifier la cause — généralement résolu sans intervention |

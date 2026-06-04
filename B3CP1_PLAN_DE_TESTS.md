@@ -1,4 +1,4 @@
-# PROMPT PDF — B3-CP1 Plan de tests
+﻿# PROMPT PDF — B3-CP1 Plan de tests
 ## Mini-Chat — Administrateur Système DevOps — Niveau 6
 
 ---
@@ -57,9 +57,9 @@
 | Type | Outil | Périmètre | Environnement |
 |------|-------|-----------|---------------|
 | Tests unitaires | Jest + supertest | Validation, authentification, protection JWT | Local (MySQL mocké) |
-| Smoke tests | Bash + curl | Health check, validation HTTP, protection JWT | Pré-production (image Docker ECR réelle) |
+| Smoke tests | Bash + curl | Health check, validation HTTP, protection JWT | Pré-production (image Docker Artifact Registry réelle) |
 
-**Stratégie de mock :** la base de données MySQL est entièrement mockée via `jest.mock('mysql2')`. Cela permet de tester la logique applicative (validation des entrées, codes HTTP retournés, vérification JWT) sans dépendance à une vraie base de données. Les tests sont ainsi déterministes et exécutables en CI/CD sans infrastructure AWS.
+**Stratégie de mock :** la base de données MySQL est entièrement mockée via `jest.mock('mysql2')`. Cela permet de tester la logique applicative (validation des entrées, codes HTTP retournés, vérification JWT) sans dépendance à une vraie base de données. Les tests sont ainsi déterministes et exécutables en CI/CD sans infrastructure GCP.
 
 ---
 
@@ -170,7 +170,7 @@ Seul le middleware JWT est testé sur cette route. L'envoi et la lecture de mess
 
 ## 4. Tests smoke — Pipeline CI/CD (pré-production)
 
-Les smoke tests s'exécutent dans le **Job 3** du pipeline GitHub Actions, sur l'image Docker réelle extraite du registre ECR, avant tout déploiement en production.
+Les smoke tests s'exécutent dans le **Job 3** du pipeline GitHub Actions, sur l'image Docker réelle extraite du Artifact Registry, avant tout déploiement en production.
 
 ### Commandes exécutées (extrait du pipeline)
 
@@ -275,7 +275,7 @@ const user_id = req.userId;
 |---------------|-------|----------------|-----------------|
 | Développement local | Jest + mock mysql2 | Aucune (mockée) | Validation, codes HTTP, JWT |
 | Pré-production CI/CD | Docker + curl | Aucune (variables fictives) | Santé container, validation, JWT |
-| Production | Manuel + CloudWatch | RDS MySQL réel | Fonctionnel complet, supervision |
+| Production | Manuel + Cloud Monitoring | Cloud SQL MySQL réel | Fonctionnel complet, supervision |
 
 ---
 

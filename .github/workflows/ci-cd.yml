@@ -169,6 +169,7 @@ jobs:
           EOF
           gcloud auth activate-service-account --key-file=/tmp/sa-key.json
           gcloud config set project $PROJECT_ID
+          echo "GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json" >> $GITHUB_ENV
 
       - name: Terraform init
         run: cd terraform && terraform init
@@ -182,7 +183,6 @@ jobs:
       - name: Terraform apply
         run: cd terraform && terraform apply -auto-approve
         env:
-          TF_VAR_db_password:             ${{ secrets.DB_PASSWORD }}
-          TF_VAR_jwt_secret:              ${{ secrets.JWT_SECRET }}
-          TF_VAR_image_tag:               ${{ github.sha }}
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa-key.json
+          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
+          TF_VAR_jwt_secret:  ${{ secrets.JWT_SECRET }}
+          TF_VAR_image_tag:   ${{ github.sha }}

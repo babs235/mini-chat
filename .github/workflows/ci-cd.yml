@@ -9,8 +9,7 @@ on:
 env:
   PROJECT_ID: mini-chat-asd
   REGION: europe-west1
-  REPOSITORY: mini-chat
-  SERVICE: mini-chat-backend
+  IMAGE: europe-west1-docker.pkg.dev/mini-chat-asd/mini-chat/backend
 
 jobs:
 
@@ -37,7 +36,6 @@ jobs:
 
 
   # ── JOB 2 : BUILD & PUSH ARTIFACT REGISTRY ───────────────────────
-  # Remplace le push ECR — même logique, registre GCP
   build-push:
     name: Build and Push to Artifact Registry
     runs-on: ubuntu-latest
@@ -46,52 +44,45 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+      - name: Auth GCP
+        run: |
+          echo "$GCP_SA_KEY" | base64 --decode > /tmp/sa-key.json
+          gcloud auth activate-service-account --key-file=/tmp/sa-key.json
+          gcloud config set project $PROJECT_ID
+          gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
       - name: Build and push
-        env:
-          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend
-          TAG: ${{ github.sha }}
         run: |
           docker build \
-            -t $IMAGE:$TAG \
+            -t $IMAGE:${{ github.sha }} \
             -t $IMAGE:latest \
             -f backend/dockerfile.backend \
             backend/
-          docker push $IMAGE:$TAG
+          docker push $IMAGE:${{ github.sha }}
           docker push $IMAGE:latest
 
 
   # ── JOB 3 : SMOKE TESTS (PRÉ-PROD) ──────────────────────────────
-  # Valide l'image AVANT tout déploiement — même artefact qu'en production
   smoke-tests:
     name: Smoke tests image Docker
     runs-on: ubuntu-latest
     needs: build-push
 
     steps:
-      - uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-
-      - uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+      - name: Auth GCP
+        run: |
+          echo "$GCP_SA_KEY" | base64 --decode > /tmp/sa-key.json
+          gcloud auth activate-service-account --key-file=/tmp/sa-key.json
+          gcloud config set project $PROJECT_ID
+          gcloud auth configure-docker $REGION-docker.pkg.dev --quiet
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
       - name: Pull and start container
-        env:
-          IMAGE: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY }}/backend
-          TAG: ${{ github.sha }}
         run: |
-          docker pull $IMAGE:$TAG
+          docker pull $IMAGE:${{ github.sha }}
           docker run -d \
             --name mini-chat-preprod \
             -p 3000:3000 \
@@ -101,7 +92,7 @@ jobs:
             -e DB_NAME=mini_chat \
             -e DB_PASSWORD=test \
             -e JWT_SECRET=test_secret \
-            $IMAGE:$TAG
+            $IMAGE:${{ github.sha }}
           for i in $(seq 1 10); do curl -sf http://localhost:3000/ && break; sleep 2; done
 
       - name: Smoke tests HTTP
@@ -138,9 +129,13 @@ jobs:
         with:
           terraform_version: '1.5'
 
-      - uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Auth GCP
+        run: |
+          echo "$GCP_SA_KEY" | base64 --decode > /tmp/sa-key.json
+          gcloud auth activate-service-account --key-file=/tmp/sa-key.json
+          gcloud config set project $PROJECT_ID
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
       - name: Terraform init
         run: cd terraform && terraform init
@@ -154,7 +149,7 @@ jobs:
       - name: Terraform apply
         run: cd terraform && terraform apply -auto-approve
         env:
-          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-          TF_VAR_jwt_secret:  ${{ secrets.JWT_SECRET }}
-          TF_VAR_image_tag:   ${{ github.sha }}
-          GOOGLE_CREDENTIALS: ${{ secrets.GCP_SA_KEY }}
+          TF_VAR_db_password:              ${{ secrets.DB_PASSWORD }}
+          TF_VAR_jwt_secret:               ${{ secrets.JWT_SECRET }}
+          TF_VAR_image_tag:                ${{ github.sha }}
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/sa-key.json

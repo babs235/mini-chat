@@ -50,10 +50,10 @@ resource "google_monitoring_alert_policy" "uptime_failure" {
       threshold_value = 1
 
       aggregations {
-        alignment_period   = "60s"
-        per_series_aligner = "ALIGN_NEXT_OLDER"
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_NEXT_OLDER"
         cross_series_reducer = "REDUCE_COUNT_TRUE"
-        group_by_fields    = ["resource.label.host"]
+        group_by_fields      = ["resource.label.host"]
       }
     }
   }
@@ -76,9 +76,9 @@ resource "google_monitoring_alert_policy" "error_rate" {
     display_name = "Taux d'erreurs 5xx elevé"
 
     condition_threshold {
-      filter     = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\" AND metric.labels.response_code_class=\"5xx\""
-      duration   = "300s"
-      comparison = "COMPARISON_GT"
+      filter          = "resource.type=\"cloud_run_revision\" AND metric.type=\"run.googleapis.com/request_count\" AND metric.labels.response_code_class=\"5xx\""
+      duration        = "300s"
+      comparison      = "COMPARISON_GT"
       threshold_value = 10
 
       aggregations {

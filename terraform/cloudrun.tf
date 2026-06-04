@@ -7,6 +7,11 @@ resource "google_cloud_run_v2_service" "backend" {
   template {
     service_account = google_service_account.cloudrun.email
 
+    scaling {
+      min_instance_count = 0 # scale to zero quand inactif — coût nul
+      max_instance_count = 3
+    }
+
     containers {
       image = "${var.region}-docker.pkg.dev/${var.project_id}/mini-chat/backend:${var.image_tag}"
 
@@ -14,7 +19,6 @@ resource "google_cloud_run_v2_service" "backend" {
         container_port = 3000
       }
 
-      # Variables non-sensibles
       env {
         name  = "NODE_ENV"
         value = "production"
@@ -27,13 +31,13 @@ resource "google_cloud_run_v2_service" "backend" {
         name  = "DB_NAME"
         value = "mini_chat"
       }
-      # Connexion Cloud SQL via socket Unix (Auth Proxy intégré)
+      # Connexion Cloud SQL via socket Unix (Auth Proxy intégré à Cloud Run)
       env {
         name  = "DB_SOCKET_PATH"
         value = "/cloudsql/${google_sql_database_instance.main.connection_name}"
       }
 
-      # Secrets injectés depuis Secret Manager — jamais en clair
+      # Secrets injectés depuis Secret Manager — jamais en clair dans les logs
       env {
         name = "DB_PASSWORD"
         value_source {
@@ -59,24 +63,20 @@ resource "google_cloud_run_v2_service" "backend" {
           memory = "512Mi"
         }
       }
+
+      # volume_mounts doit être dans containers — pas au niveau template
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
     }
 
-    # Connexion Cloud SQL Auth Proxy intégrée — crée le socket Unix
+    # volumes au niveau template — crée le socket Unix Cloud SQL Auth Proxy
     volumes {
       name = "cloudsql"
       cloud_sql_instance {
         instances = [google_sql_database_instance.main.connection_name]
       }
-    }
-
-    volume_mounts {
-      name       = "cloudsql"
-      mount_path = "/cloudsql"
-    }
-
-    scaling {
-      min_instance_count = 0   # scale to zero quand inactif — coût nul
-      max_instance_count = 3
     }
   }
 

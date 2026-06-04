@@ -26,8 +26,8 @@ resource "google_sql_database_instance" "main" {
     ip_configuration {
       # IP publique nécessaire pour Cloud Run (sans VPC connector)
       # Sécurisé par l'authentification du compte de service Cloud Run
-      ipv4_enabled    = true
-      require_ssl     = false
+      ipv4_enabled = true
+      require_ssl  = false
     }
   }
 

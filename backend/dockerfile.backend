@@ -1,5 +1,5 @@
 # ── STAGE 1 : installation des dépendances ───────────────────
-# Alpine = image ultra-légère (~50MB vs ~900MB pour node:20)
+# Alpine + prod-only deps = image légère (48MB vs ~900MB pour node:20 standard)
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package*.json ./

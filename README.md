@@ -1,97 +1,115 @@
-# Mini-Chat — Application de Messagerie Cloud-Native
+# Mini-Chat 💬
 
-**Projet de certification RNCP 36061 — Administrateur Système DevOps — Niveau 6**
+> Application de messagerie temps réel déployée sur Google Cloud Platform avec un pipeline CI/CD complet.
 
-[![CI/CD](https://github.com/babs235/mini-chat/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/babs235/mini-chat/actions/workflows/ci-cd.yml)
+[![CI/CD Pipeline](https://github.com/babs235/mini-chat/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/babs235/mini-chat/actions/workflows/ci-cd.yml)
+[![Node.js](https://img.shields.io/badge/Node.js-20_LTS-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![Terraform](https://img.shields.io/badge/Terraform-1.5+-7B42BC?logo=terraform&logoColor=white)](https://terraform.io)
+[![GCP](https://img.shields.io/badge/Google_Cloud-Cloud_Run-4285F4?logo=google-cloud&logoColor=white)](https://cloud.google.com/run)
 
-**Production :** https://mini-chat-backend-py4vurg4oq-ew.a.run.app
+**🚀 Live :** https://mini-chat-backend-py4vurg4oq-ew.a.run.app
 
 ---
 
-## Architecture
+## À propos
+
+Mini-Chat permet à des utilisateurs de s'inscrire, se connecter, et s'envoyer des messages depuis un navigateur. L'application est intentionnellement simple — l'objectif réel est l'infrastructure : un pipeline CI/CD qui déploie automatiquement à chaque `git push`, une infrastructure 100% en code avec Terraform, des secrets sécurisés via Secret Manager, et une supervision avec alertes email.
+
+**Un `git push` = tests → build → validation → déploiement en production. Automatiquement.**
+
+---
+
+## Stack
+
+| | |
+|---|---|
+| **Backend** | Node.js 20 + Express 5 |
+| **Base de données** | MySQL 8.0 sur Google Cloud SQL |
+| **Auth** | JWT + bcrypt |
+| **Container** | Docker multi-stage Alpine (~180 MB) |
+| **Registry** | Google Artifact Registry |
+| **Hosting** | Google Cloud Run (serverless) |
+| **IaC** | Terraform — 6 fichiers HCL |
+| **CI/CD** | GitHub Actions — 4 jobs |
+| **Secrets** | Google Secret Manager |
+| **Monitoring** | Cloud Monitoring + Cloud Logging |
+
+---
+
+## Pipeline CI/CD
 
 ```
-Développeur
-    │  git push main
-    ▼
-GitHub Actions (4 jobs séquentiels)
-    ├── Job 1 : Tests Jest (10 tests unitaires)
-    ├── Job 2 : docker build → push Artifact Registry :sha-commit
-    ├── Job 3 : Smoke tests HTTP sur image réelle
-    └── Job 4 : terraform apply → Cloud Run déploie la nouvelle version
-                    │
-                    ▼
-        Google Cloud Platform — europe-west1 (Belgique)
-        ┌──────────────────────────────────────────────────┐
-        │                                                  │
-        │  Internet ──HTTPS──► [Cloud Run :3000]           │
-        │                           │                      │
-        │                  port 3306 (socket Unix)         │
-        │                           ▼                      │
-        │              [Cloud SQL MySQL 8.0]               │
-        │                                                  │
-        │  [Cloud Logging + 2 Alertes] ──► [Email]         │
-        └──────────────────────────────────────────────────┘
+git push main
+      ↓
+ ┌─ Job 1 ──────────────────────────────────┐
+ │  npm test  →  10 tests Jest + Supertest  │
+ │  ⛔ si KO : tout s'arrête                 │
+ └──────────────────────────────────────────┘
+      ↓
+ ┌─ Job 2 ──────────────────────────────────┐
+ │  docker build (multi-stage Alpine)       │
+ │  push → Artifact Registry :SHA-commit   │
+ └──────────────────────────────────────────┘
+      ↓
+ ┌─ Job 3 ──────────────────────────────────┐
+ │  pull image réelle depuis Artifact Reg. │
+ │  smoke tests : GET / → 200              │
+ │               POST /register → 400      │
+ │               GET /messages → 403       │
+ └──────────────────────────────────────────┘
+      ↓
+ ┌─ Job 4 ──────────────────────────────────┐
+ │  terraform apply                         │
+ │  Cloud Run rolling update                │
+ │  health check → si KO : rollback auto   │
+ └──────────────────────────────────────────┘
 ```
 
 ---
 
-## Stack Technique
+## Architecture GCP
 
-| Couche | Technologie |
-|--------|-------------|
-| Backend | Node.js 20 + Express 5 |
-| Frontend | HTML5 / CSS3 / JavaScript vanilla |
-| Base de données | MySQL 8.0 (Google Cloud SQL) |
-| Authentification | JWT + bcrypt |
-| Conteneurisation | Docker multi-stage Alpine |
-| Registre d'images | Google Artifact Registry |
-| Orchestration | Google Cloud Run (serverless) |
-| Infrastructure as Code | Terraform 1.5+ (provider GCP) |
-| Pipeline CI/CD | GitHub Actions (4 jobs) |
-| Secrets | Google Secret Manager |
-| Supervision | Google Cloud Monitoring + alertes email |
-| État Terraform | Google Cloud Storage (`mini-chat-asd-tfstate`) |
+```
+Internet ──HTTPS──► Cloud Run :3000
+                         │
+              socket Unix (Cloud SQL Auth Proxy)
+                         │
+                   Cloud SQL MySQL 8.0
 
----
+Cloud Monitoring  →  2 alertes email
+Cloud Logging     →  logs container temps réel
+Secret Manager    →  DB_PASSWORD + JWT_SECRET
+Artifact Registry →  images Docker
+Cloud Storage     →  état Terraform
+```
 
-## Compétences ASD couvertes (RE TP-01414-01)
-
-| Bloc | Compétence | Mise en œuvre |
-|------|-----------|---------------|
-| BC01 | Automatiser la création de serveurs | Terraform IaC — 5 fichiers HCL |
-| BC01 | Automatiser le déploiement d'une infrastructure | GitHub Actions Job 4 — `terraform apply` |
-| BC01 | Sécuriser l'infrastructure | Secret Manager, IAM, HTTPS, pas de SSH |
-| BC01 | Mettre en production dans le cloud | Cloud Run GCP europe-west1 |
-| BC02 | Préparer un environnement de test | Jest 10 tests + smoke tests CI/CD |
-| BC02 | Gérer le stockage des données | Cloud SQL MySQL, socket Unix, backup |
-| BC02 | Gérer des containers | Docker multi-stage, Artifact Registry, Cloud Run |
-| BC02 | Automatiser la mise en production | Pipeline 4 jobs — push = déploiement complet |
-| BC03 | Définir des statistiques de services | 2 alarmes Cloud Monitoring (uptime + 5xx) |
-| BC03 | Exploiter une solution de supervision | Cloud Logging + alertes email |
+Le HTTPS est géré automatiquement par Cloud Run. La connexion Cloud SQL passe par un socket Unix authentifié par IAM — zéro port réseau exposé, zéro SSH.
 
 ---
 
-## Démarrage local
+## Lancer en local
 
 ```bash
 git clone https://github.com/babs235/mini-chat.git
 cd mini-chat
 
-# Créer le fichier de config local
-cat > backend/.env << EOF
+# Config
+cp backend/.env.example backend/.env   # ou crée le .env manuellement
+
+# Lancer
+cd docker && docker compose up --build
+
+# → http://localhost:3000
+```
+
+**Variables requises dans `backend/.env` :**
+```env
 DB_HOST=db
 DB_USER=root
 DB_PASSWORD=local_password
 DB_NAME=mini_chat
 JWT_SECRET=local_secret
 NODE_ENV=development
-EOF
-
-# Lancer avec Docker Compose
-cd docker && docker compose up --build
-
-# Application disponible sur http://localhost:3000
 ```
 
 ---
@@ -99,60 +117,61 @@ cd docker && docker compose up --build
 ## Tests
 
 ```bash
-cd backend
-npm install
-npm test              # 10 tests unitaires Jest
-npm test -- --coverage  # avec rapport de couverture (~60% lignes)
+cd backend && npm test               # 10 tests Jest
+npm test -- --coverage               # ~60% coverage
 ```
 
 ---
 
-## Déploiement production
+## Déploiement
 
-Le déploiement est **entièrement automatisé** via GitHub Actions.
+**Secrets GitHub à configurer :**
 
-**Secrets GitHub requis :**
+| Secret | Valeur |
+|---|---|
+| `GCP_SA_KEY` | Clé JSON du compte de service (raw ou base64) |
+| `DB_PASSWORD` | Mot de passe Cloud SQL |
+| `JWT_SECRET` | Clé JWT |
 
-| Secret | Description |
-|--------|-------------|
-| `GCP_SA_KEY` | Clé JSON du compte de service GCP (base64) |
-| `DB_PASSWORD` | Mot de passe Cloud SQL MySQL |
-| `JWT_SECRET` | Clé de signature JWT |
-
-**Déclencher un déploiement :**
 ```bash
-git push origin main
-# → Tests → Build Artifact Registry → Smoke tests → terraform apply → Cloud Run
+git push origin main  # déclenche le pipeline complet (~8 min)
 ```
 
 ---
 
-## Structure du projet
+## Structure
 
 ```
 mini-chat/
-├── .github/workflows/
-│   └── ci-cd.yml              # Pipeline CI/CD 4 jobs
+├── .github/workflows/ci-cd.yml     # Pipeline 4 jobs
 ├── backend/
 │   ├── src/
-│   │   ├── config/database.js # Pool MySQL (TCP ou socket Unix)
-│   │   ├── middleware/auth.js  # Vérification JWT
-│   │   └── routes/            # auth.js + messages.js
-│   ├── frontend/              # HTML/CSS/JS
-│   ├── tests/app.test.js      # Tests Jest
-│   └── dockerfile.backend     # Multi-stage Alpine
-├── docker/
-│   └── docker-compose.yml     # Env local
-├── terraform/
-│   ├── provider.tf            # GCP + backend GCS
-│   ├── main.tf                # Artifact Registry + Cloud SQL + Secret Manager
-│   ├── cloudrun.tf            # Cloud Run service
-│   ├── monitoring.tf          # Alertes Cloud Monitoring
-│   ├── variables.tf
-│   └── outputs.tf
-└── README.md
+│   │   ├── config/database.js      # Pool MySQL (socket ou TCP)
+│   │   ├── middleware/auth.js      # Middleware JWT
+│   │   └── routes/                 # auth.js · messages.js
+│   ├── frontend/                   # HTML · CSS · JS
+│   ├── tests/app.test.js           # Jest + Supertest
+│   └── dockerfile.backend          # Multi-stage Alpine
+├── docker/docker-compose.yml       # Dev local
+└── terraform/
+    ├── provider.tf                  # GCP + état GCS
+    ├── main.tf                      # Cloud SQL · Secret Manager · IAM
+    ├── cloudrun.tf                  # Cloud Run + injection secrets
+    ├── monitoring.tf                # 2 alertes Cloud Monitoring
+    ├── variables.tf
+    └── outputs.tf
 ```
 
 ---
 
-**Babikir Ibrahim — Formation ASD Niveau 6 — 2026**
+## Sécurité
+
+- Secrets injectés depuis Secret Manager au démarrage — jamais dans le code ni dans les logs
+- 2 comptes de service IAM séparés (infra vs application) — moindre privilège
+- Requêtes SQL préparées partout — zéro concaténation
+- Échappement HTML avant insertion en base — protection XSS
+- Zéro SSH — Cloud Run est serverless
+
+---
+
+*Projet réalisé dans le cadre du Titre Professionnel Administrateur Système DevOps — Niveau 6 (RNCP 36061) — Ecole-IT d'Orléans — 2026*

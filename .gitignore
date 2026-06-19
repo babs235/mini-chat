@@ -14,17 +14,7 @@ terraform.tfvars.local
 # Variables sensibles — les vraies valeurs passent par GitHub Secrets
 # terraform.tfvars ne contient QUE des valeurs non-sensibles (aws_region)
 
-# Documentation locale non versionnée
-PROMETHEUS*.md
-RENDU*.md
-TUTO*.md
-COURS*.md
-CORRECTION_ASD.md
-EVALUATION_JURY_ASD.md
-PHRASES_JURY.md
-POWERPOINT_PROMPT.md
-.windsurf/
-.windsurf/workflows/
+MAITRISE_COMPLETE_PROJET.md
 
 # Clés SSH et GCP — Ne JAMAIS versionner
 *.pem

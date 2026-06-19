@@ -1,4 +1,5 @@
 name: CI/CD Mini-Chat (GCP)
+run-name: "${{ github.event.head_commit.message }} · par ${{ github.actor }}"
 
 on:
   push:

@@ -15,3 +15,4 @@ output "cloudrun_service" {
   description = "Nom du service Cloud Run"
   value       = google_cloud_run_v2_service.backend.name
 }
+

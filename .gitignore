@@ -15,9 +15,11 @@ terraform.tfvars.local
 # terraform.tfvars ne contient QUE des valeurs non-sensibles (aws_region)
 
 MAITRISE_COMPLETE_PROJET.md
+SCRIPT_COMPLET_22_SLIDES.md
+PIPELINE_COMPLET.md
+FINAL_SOUTENANCE.md
 
 # Clés SSH et GCP — Ne JAMAIS versionner
 *.pem
 *.key
-ssh-keys/
 gcp-key.json

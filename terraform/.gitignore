@@ -22,5 +22,3 @@ crash.log
 # Les fichiers JSON de variables
 *.tfvars.json
 
-# La clé SSH privée (JAMAIS sur GitHub !)
-*.pem
